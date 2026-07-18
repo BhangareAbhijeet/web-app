@@ -6,13 +6,14 @@ import Login from "./pages/Login";
 import "./App.css"
 import LanguageSelection from "./pages/LanguageSelection";
 import Contacts from "./components/Contacts";
-import ChatSection from "./pages/ChatSection";
+
 import Signup from "./pages/Signup";
 import Welcome from "./pages/Welcome";
 import SelectionPage from "./pages/SelectionPage";
 import Profile from "./pages/Profile";
 import ContactInfo from "./pages/ContactInfo";
 import Calls from "./pages/Calls";
+import ChatPage from "./pages/ChatPage";
 
 
 function App() {
@@ -20,7 +21,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LanguageSelection />} />
-        <Route path="/messages" element={<ChatSection />} />
+        <Route path="/messages" element={<ChatPage />} />
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/calls" element={<Calls  />} />
         <Route path="/profile" element={<Profile />} />
