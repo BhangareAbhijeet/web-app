@@ -1,0 +1,145 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+body {
+    background: #000;
+    overflow-x: hidden;
+}
+
+.welcome-container {
+    width: 100%;
+    min-height: 100vh;
+    background: #121212;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    position: relative;
+    overflow: hidden;
+}
+
+.welcome-container::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+
+    background-image: url("../assets/bg-design-dark.png");
+    background-repeat: repeat;
+    background-position: center;
+    background-size: 320px;
+
+    opacity: 0.30;
+
+    z-index: 1;
+}
+
+.welcome-content {
+    width: 100%;
+    max-width: 700px;
+    transform: translateY(-35px);
+    position: relative;
+    z-index: 2;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    padding: 20px;
+}
+
+.welcome-image img {
+  
+    height: auto;
+    object-fit: contain;
+    width: 340px;
+        margin-bottom: 40px;
+}
+
+.welcome-title {
+    color: #fff;
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 22px;
+}
+
+.welcome-description {
+    color: #9ca3af;
+    font-size: 17px;
+    line-height: 28px;
+    margin-bottom: 35px;
+}
+
+.next-button {
+    width: 450px;
+    height: 65px;
+    border: none;
+    border-radius: 18px;
+    background: #2563eb;
+    color: white;
+    font-size: 22px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+
+    transition: 0.3s;
+}
+
+.next-button:hover {
+    background: #1d4ed8;
+    transform: translateY(-2px);
+}
+
+.welcome-dots {
+    display: flex;
+    gap: 12px;
+    margin-top: 28px;
+    margin-bottom: 35px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    background: #555;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.dot.dot-active {
+    width: 32px;
+    background: #2563eb;
+    border-radius: 20px;
+}
+
+@media (max-width: 768px) {
+    .welcome-image img {
+        width: 190px;
+    }
+
+    .welcome-title {
+        font-size: 34px;
+    }
+
+    .welcome-description {
+        font-size: 15px;
+        line-height: 26px;
+    }
+
+    .next-button {
+        width: 100%;
+        font-size: 20px;
+    }
+}

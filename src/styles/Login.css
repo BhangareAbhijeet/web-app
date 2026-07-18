@@ -1,0 +1,321 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  background: #000;
+}
+
+/* ================= LOGIN CONTAINER ================= */
+
+.login-container {
+  min-height: 100vh;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  background: #000;
+}
+
+.login-card {
+  width: 430px;
+
+  color: #fff;
+
+  text-align: center;
+}
+
+/* ================= LOGO ================= */
+
+.login-logo {
+  display: block;
+  width: 100%;
+  text-align: center;
+
+  color: #2f80ff;
+  font-size: 30px;
+  font-weight: 600;
+
+  margin: 0 0 25px 0;
+  letter-spacing: 1px;
+
+  transition: color 0.3s ease;
+}
+
+.login-logo:hover {
+  color: #60a5fa;
+}
+
+/* ================= HEADING ================= */
+
+h1 {
+  font-size: 32px;
+  margin: 0;
+}
+
+.subtitle {
+  color: #9a9a9a;
+  margin: 15px 0 35px;
+}
+
+/* ================= INPUT ================= */
+
+input {
+  width: 100%;
+
+  padding: 18px;
+
+  margin-bottom: 20px;
+
+  border-radius: 16px;
+
+  background: #111216;
+
+  border: 1px solid #222;
+
+  color: #fff;
+
+  font-size: 16px;
+
+  outline: none;
+}
+
+input:focus {
+  border-color: #2563eb;
+}
+
+/* ================= PASSWORD ================= */
+
+.password-box {
+  position: relative;
+}
+
+.eye {
+  position: absolute;
+
+  right: 20px;
+
+  top: 18px;
+
+  cursor: pointer;
+
+  color: #888;
+
+  font-size: 18px;
+
+  transition: 0.3s;
+}
+
+.eye:hover {
+  color: white;
+}
+
+/* ================= OPTIONS ================= */
+
+.options {
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  margin: 18px 0 30px;
+}
+
+.options label {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  color: #fff;
+
+  font-size: 16px;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+}
+
+.options input[type="checkbox"] {
+  width: 18px;
+
+  height: 18px;
+
+  accent-color: #2563eb;
+
+  cursor: pointer;
+
+  margin: 0;
+}
+
+.options a {
+  color: #2f80ff;
+
+  text-decoration: none;
+
+  font-size: 16px;
+
+  font-weight: 500;
+
+  transition: 0.3s;
+}
+
+.options a:hover {
+  color: #60a5fa;
+
+  text-decoration: underline;
+}
+
+/* ================= LOGIN BUTTON ================= */
+
+.login-btn {
+  width: 100%;
+
+  padding: 18px;
+
+  border: none;
+
+  border-radius: 18px;
+
+  background: #2563eb;
+
+  color: white;
+
+  font-size: 18px;
+
+  cursor: pointer;
+
+  transition: 0.3s ease;
+}
+
+.login-btn:hover {
+  background: #1d4ed8;
+
+  transform: translateY(-2px);
+}
+
+/* ================= DIVIDER ================= */
+
+.divider {
+  margin: 40px 0 25px;
+
+  color: #777;
+
+  font-weight: bold;
+}
+
+/* ================= SOCIAL ICONS ================= */
+
+.social-icons {
+  display: flex;
+
+  justify-content: center;
+
+  gap: 18px;
+}
+
+.social-icons button {
+  width: 58px;
+
+  height: 58px;
+
+  border-radius: 18px;
+
+  border: 1px solid #333;
+
+  background: #111;
+
+  color: white;
+
+  font-size: 22px;
+
+  cursor: pointer;
+
+  transition: 0.3s ease;
+}
+
+.social-icons button:hover {
+  transform: translateY(-5px);
+
+  box-shadow: 0 8px 20px rgba(47, 128, 255, 0.35);
+}
+
+.google {
+  background: white !important;
+
+  color: #444 !important;
+}
+
+.google:hover {
+  background: #f1f1f1 !important;
+}
+
+.facebook {
+  background: #2563eb !important;
+}
+
+.facebook:hover {
+  background: #1d4ed8 !important;
+}
+
+.phone {
+  border: 2px solid #777 !important;
+}
+
+.phone:hover {
+  border-color: #2f80ff !important;
+
+  background: #111827;
+}
+
+/* ================= SIGNUP ================= */
+
+.signup {
+  margin-top: 40px;
+
+  color: #888;
+}
+
+.signup a {
+  color: #2f80ff;
+
+  text-decoration: none;
+
+  font-weight: bold;
+
+  transition: 0.3s ease;
+}
+
+.signup a:hover {
+  color: #60a5fa;
+
+  text-decoration: underline;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 500px) {
+  .login-card {
+    width: 100%;
+
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+
+  .social-icons button {
+    width: 52px;
+
+    height: 52px;
+  }
+}

@@ -1,0 +1,111 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.screen {
+    width: 100%;
+    min-height: 100vh;
+    background-color: #121212;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Background Image */
+.screen::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    width: 100%;
+    height: 100%;
+
+    background-image: url("../assets/bg-design-dark.png");
+    background-repeat: repeat;
+    background-position: center;
+    background-size: 320px;
+
+    /* Change this value if needed */
+    opacity: 0.30;
+
+    z-index: 1;
+}
+
+.content {
+    width: 90%;
+    max-width: 380px;
+    text-align: center;
+    margin-bottom: 70px;
+    position: relative;
+    z-index: 2;
+}
+
+.logo {
+    height: 250px;
+    width: 450px;
+    margin-left: -40px;
+    margin-bottom: 30px;
+}
+
+.title {
+    color: white;
+    font-size: 50px;
+    font-weight: 500;
+    margin-bottom: 60px;
+}
+
+.login-button {
+    width: 100%;
+    height: 60px;
+    border: none;
+    border-radius: 16px;
+    background: #1976f2;
+    color: white;
+    font-size: 32px;
+    cursor: pointer;
+    margin-bottom: 18px;
+    transition: 0.3s;
+}
+
+.login-button:hover {
+    background: #1565d8;
+}
+
+.signup-button {
+    width: 100%;
+    height: 60px;
+    border-radius: 16px;
+    background: #000;
+    color: white;
+    border: 1px solid #444;
+    font-size: 32px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.signup-button:hover {
+    background: #111;
+}
+
+.bottom-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: white;
+    color: #333;
+    text-align: center;
+    padding: 18px;
+    font-size: 18px;
+    z-index: 3;
+}
+
+.app {
+    min-height: 100vh;
+    background: transparent; }
