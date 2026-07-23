@@ -4,21 +4,11 @@
   box-sizing: border-box;
 }
 
-/* ===== HTML & Body ===== */
 html,
-body {
-  width: 100%;
-  min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  background: #000;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-/* ===== React Root ===== */
+body,
 #root {
   width: 100%;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }

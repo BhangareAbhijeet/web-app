@@ -1,6 +1,5 @@
 import React from "react";
 import { FiSearch, FiBell, FiPhone, FiGlobe } from "react-icons/fi";
-import Header from "../components/Profile/Header";
 
 import "../styles/Calls.css";
 import callImg from "../assets/no-calls-image.png";
@@ -8,7 +7,7 @@ import callImg from "../assets/no-calls-image.png";
 const Calls = () => {
   return (
     <>
-      <Header />
+    
 
       <div className="calls-container">
         {/* Left Panel */}

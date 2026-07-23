@@ -1,8 +1,7 @@
 /* ===== Layout ===== */
 .contacts-page {
     display: flex;
-    height: calc(100vh - 90px);
-    /* subtract header height */
+    height: 100vh;
     width: 100%;
     background: #0b0b0d;
     font-family: Arial, Helvetica, sans-serif;
@@ -10,7 +9,7 @@
 
 /* ===== Sidebar ===== */
 .contacts-sidebar {
-    width: 400px;
+    width: 320px;
     flex-shrink: 0;
     background: #0b0b0d;
     border-right: 1px solid #202020;
@@ -32,6 +31,12 @@
     font-weight: 700;
     margin: 0;
     color: #ffffff;
+}
+
+.contacts-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .contacts-header-icons {
@@ -72,31 +77,38 @@
 
 /* ===== Search ===== */
 .contacts-search {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 0 0 16px;
-    padding: 12px 14px;
-    background: #1a1a1c;
-    border-radius: 12px;
-}
-
-.contacts-search-icon {
-    color: #8a8a8a;
-    flex-shrink: 0;
+    padding: 0;
 }
 
 .contacts-search input {
-    border: none;
-    background: transparent;
-    outline: none;
     width: 100%;
+    padding: 8px 14px 8px 38px;
+    border-radius: 999px;
     font-size: 14px;
-    color: #ffffff;
+    background: #2a2a2a;
+    border: none;
+    color: #e5e5e5;
 }
 
 .contacts-search input::placeholder {
-    color: #7a7a7a;
+    color: #9a9a9a;
+}
+
+.contacts-search input:focus {
+    outline: none;
+    background: #333333;
+}
+
+.contacts-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 40%;
+    transform: translateY(-50%);
+    color: #9a9a9a;
+    pointer-events: none;
 }
 
 /* ===== Action rows (New Group / Invite Friends) ===== */
@@ -182,19 +194,20 @@
     background: #1a1a1c;
 }
 
+/* ===== Avatar (single source of truth) ===== */
 .avatar {
     position: relative;
-    width: 46px;
-    height: 46px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
     font-weight: 600;
-    font-size: 17px;
+    font-size: 18px;
     flex-shrink: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .avatar img {
@@ -206,13 +219,13 @@
 
 .status-dot {
     position: absolute;
-    bottom: 0;
-    right: 0;
+    bottom: 0px;
+    right: 0px;
     width: 12px;
     height: 12px;
+    background: #22c55e;
     border-radius: 50%;
-    background: #2ecc71;
-    border: 2px solid #0b0b0d;
+    border: 2.5px solid #0d0d0d;
 }
 
 .contact-info {
@@ -304,4 +317,30 @@
 .active-chat-placeholder p {
     font-size: 14px;
     color: #8a8a8a;
+}
+
+.contacts-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #60a5fa;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }

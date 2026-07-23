@@ -1,84 +1,140 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../../services/api";
+import api from "../../services/api";
+
 import {
-  FiUser,
   FiMail,
   FiPhone,
   FiLock,
   FiBell,
-  FiMoon,
-  FiGlobe,
+  FiShield,
+  FiSun,
+  FiHelpCircle,
   FiLogOut,
+  FiChevronRight,
+  FiCheck,
 } from "react-icons/fi";
 
 import "../../styles/ProfileSetting.css";
 
-const ProfileSetting = () => {
+const ProfileSetting = ({
+  userData,
+  setUserData,
+  isEditingProfile,
+  phone,
+  setPhone,
+}) => {
+  const navigate = useNavigate();
+
   const [notification, setNotification] = useState(false);
 
-  const logout = () => {
-    localStorage.removeItem("token");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-    window.location.href = "/login";
+  const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+
+  const profile = userData?.email ? userData : storedUser;
+
+  // SAVE PHONE NUMBER
+
+  const logout = async () => {
+    console.log("Profile:", profile);
+    console.log("Email:", profile.email);
+
+    try {
+      const res = await logoutUser(profile.email);
+      console.log("Logout Response:", res);
+    } catch (error) {
+      console.log("Logout Error:", error);
+    }
+
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("rememberMe");
+    localStorage.removeItem("user");
+    localStorage.removeItem("email");
+    localStorage.removeItem("password");
+
+    navigate("/login", { replace: true });
   };
 
   return (
     <div className="profile-setting-container">
-      {/* ACCOUNT INFORMATION */}
-
       <div className="profile-setting-card">
-        <h2>Account Information</h2>
+        <h2>Account</h2>
+
+        {/* EMAIL */}
 
         <div className="setting-row">
-          <div className="setting-label">
-            <FiUser />
+          <div className="setting-left">
+            <div className="icon-box">
+              <FiMail />
+            </div>
 
-            <span>Name</span>
+            <div>
+              <h4>Email</h4>
+
+              <p>{profile.email || "No Email"}</p>
+            </div>
           </div>
-
-          <p></p>
         </div>
 
+        {/* PHONE */}
+
         <div className="setting-row">
-          <div className="setting-label">
-            <FiMail />
+          <div className="setting-left">
+            <div className="icon-box">
+              <FiPhone />
+            </div>
 
-            <span>Email Address</span>
+            <div>
+              <h4>Phone</h4>
+
+              {isEditingProfile ? (
+                <input
+                  className="edit-input"
+                  type="text"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              ) : (
+                <p>{profile.phone || "No Phone Number"}</p>
+              )}
+            </div>
           </div>
-
-          <p></p>
         </div>
 
-        <div className="setting-row">
-          <div className="setting-label">
-            <FiPhone />
+        {/* PASSWORD */}
 
-            <span>Phone Number</span>
+        <div className="setting-row">
+          <div className="setting-left">
+            <div className="icon-box">
+              <FiLock />
+            </div>
+
+            <div>
+              <h4>Password</h4>
+
+              <p>Change your password</p>
+            </div>
           </div>
 
-          <p></p>
+          <FiChevronRight />
         </div>
       </div>
 
-      {/* SYSTEM SETTINGS */}
-
       <div className="profile-setting-card">
-        <h2>System Settings</h2>
+        <h2>Settings</h2>
+
+        {/* NOTIFICATION */}
 
         <div className="setting-row">
-          <div className="setting-label">
-            <FiLock />
+          <div className="setting-left">
+            <div className="icon-box">
+              <FiBell />
+            </div>
 
-            <span>Security</span>
-          </div>
-
-          <span>&gt;</span>
-        </div>
-
-        <div className="setting-row">
-          <div className="setting-label">
-            <FiBell />
-
-            <span>Notifications</span>
+            <h4>Notifications</h4>
           </div>
 
           <label className="toggle">
@@ -92,31 +148,90 @@ const ProfileSetting = () => {
           </label>
         </div>
 
-        <div className="setting-row">
-          <div className="setting-label">
-            <FiMoon />
+        {/* PRIVACY */}
 
-            <span>Appearance</span>
+        <div className="setting-row">
+          <div className="setting-left">
+            <div className="icon-box">
+              <FiShield />
+            </div>
+
+            <h4>Privacy</h4>
           </div>
 
-          <span>Dark Mode</span>
+          <FiChevronRight />
         </div>
 
-        <div className="setting-row">
-          <div className="setting-label">
-            <FiGlobe />
+        {/* APPEARANCE */}
 
-            <span>Language</span>
+        <div className="setting-row">
+          <div className="setting-left">
+            <div className="icon-box">
+              <FiSun />
+            </div>
+
+            <h4>Appearance</h4>
           </div>
 
-          <span>English</span>
+          <FiChevronRight />
+        </div>
+
+        {/* HELP */}
+
+        <div className="setting-row">
+          <div className="setting-left">
+            <div className="icon-box">
+              <FiHelpCircle />
+            </div>
+
+            <h4>Help</h4>
+          </div>
+
+          <FiChevronRight />
+        </div>
+
+        {/* LOGOUT */}
+
+        <div
+          className="setting-row logout-row"
+          onClick={() => setShowLogoutModal(true)}
+        >
+          <div className="setting-left">
+            <div className="icon-box">
+              <FiLogOut />
+            </div>
+
+            <h4>Logout</h4>
+          </div>
+
+          <FiChevronRight />
         </div>
       </div>
 
-      <button className="logout-button" onClick={logout}>
-        <FiLogOut />
-        Logout
-      </button>
+      {/* LOGOUT MODAL */}
+
+      {showLogoutModal && (
+        <div className="logout-overlay">
+          <div className="logout-modal">
+            <h2>Confirm Logout</h2>
+
+            <p>Are you sure you want to logout?</p>
+
+            <div className="logout-actions">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowLogoutModal(false)}
+              >
+                Cancel
+              </button>
+
+              <button className="confirm-btn" onClick={logout}>
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

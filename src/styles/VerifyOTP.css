@@ -1,0 +1,286 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Inter, sans-serif;
+}
+
+/* ================= THEME ================= */
+
+:root {
+    --bg-gradient: linear-gradient(180deg, #f8c79b 0%, #f7d8d8 55%, #ead7f8 100%);
+
+    --card-bg: rgba(255, 255, 255, .35);
+    --card-border: rgba(255, 255, 255, .55);
+    --card-shadow: rgba(0, 0, 0, .08);
+
+    --title: #111;
+    --text: #333;
+    --email: #1565d8;
+
+    --otp-bg: #fff;
+    --otp-border: #d9d9d9;
+    --otp-focus: #999;
+
+    --button: #1565d8;
+    --button-hover: #0f57c7;
+
+    --timer: #6d6d6d;
+    --link: #1565d8;
+}
+
+@media (prefers-color-scheme: dark) {
+
+    :root {
+
+        --bg-gradient: linear-gradient(180deg, #11141d, #181b25, #23263a);
+
+        --card-bg: rgba(20, 22, 30, .75);
+        --card-border: rgba(255, 255, 255, .08);
+        --card-shadow: rgba(0, 0, 0, .4);
+
+        --title: #fff;
+        --text: #cfcfcf;
+        --email: #5da2ff;
+
+        --otp-bg: #0f141d;
+        --otp-border: #5b5b5b;
+        --otp-focus: #2d6cff;
+
+        --button: #2d6cff;
+        --button-hover: #1b53e8;
+
+        --timer: #9f9f9f;
+        --link: #5da2ff;
+    }
+}
+
+/* ================= PAGE ================= */
+
+.otp-page {
+    height: 100vh;
+    overflow: hidden;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: var(--bg-gradient);
+    padding: 20px;
+}
+
+/* ================= CARD ================= */
+
+.otp-card {
+
+    width: 100%;
+    max-width: 530px;
+
+    padding: 50px 40px;
+
+    border-radius: 35px;
+
+    background: var(--card-bg);
+    backdrop-filter: blur(15px);
+
+    border: 1px solid var(--card-border);
+
+    box-shadow: 0 20px 45px var(--card-shadow);
+
+    text-align: center;
+}
+
+.otp-card h1 {
+
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--title);
+
+    margin-bottom: 18px;
+}
+
+.otp-text {
+
+    font-size: 22px;
+    color: var(--text);
+    line-height: 1.45;
+
+}
+
+.otp-email {
+
+    margin-top: 8px;
+    color: var(--email);
+    font-size: 20px;
+    font-weight: 600;
+
+}
+
+/* ================= OTP ================= */
+
+.otp-inputs {
+
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+
+    margin: 30px 0;
+
+}
+
+.otp-inputs input {
+
+    width: 68px;
+    height: 72px;
+
+    border-radius: 12px;
+
+    border: 2px solid var(--otp-border);
+
+    background: var(--otp-bg);
+
+    color: var(--title);
+
+    text-align: center;
+
+    font-size: 32px;
+    font-weight: 600;
+
+    outline: none;
+
+    transition: .25s;
+}
+
+.otp-inputs input:focus {
+
+    border-color: var(--otp-focus);
+
+}
+
+/* ================= BUTTON ================= */
+
+.verify-btn {
+
+    width: 100%;
+    height: 65px;
+
+    border: none;
+    border-radius: 18px;
+
+    background: var(--button);
+
+    color: #fff;
+
+    font-size: 22px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition: .3s;
+
+}
+
+.verify-btn:hover {
+
+    background: var(--button-hover);
+
+}
+
+/* ================= TEXT ================= */
+
+.resend-text {
+
+    margin-top: 20px;
+
+    color: var(--timer);
+
+    font-size: 18px;
+
+}
+
+.back-login {
+
+    display: inline-block;
+
+    margin-top: 25px;
+
+    color: var(--link);
+
+    font-size: 20px;
+
+    text-decoration: none;
+}
+
+.back-login:hover {
+
+    text-decoration: underline;
+
+}
+
+/* ================= MOBILE ================= */
+
+@media(max-width:768px) {
+
+    .otp-card {
+
+        padding: 45px 25px;
+
+    }
+
+    .otp-card h1 {
+
+        font-size: 42px;
+
+    }
+
+    .otp-text {
+
+        font-size: 18px;
+
+    }
+
+    .otp-email {
+
+        font-size: 17px;
+
+    }
+
+    .otp-inputs {
+
+        gap: 8px;
+
+    }
+
+    .otp-inputs input {
+
+        width: 46px;
+        height: 58px;
+
+        font-size: 24px;
+
+    }
+
+    .verify-btn {
+
+        height: 55px;
+        font-size: 19px;
+
+    }
+
+}
+
+.resend-text {
+    margin-top: 28px;
+    color: var(--timer);
+    font-size: 18px;
+}
+
+.resend-link {
+    color: var(--link);
+    font-weight: 600;
+    cursor: pointer;
+    transition: .3s;
+}
+
+.resend-link:hover {
+    text-decoration: underline; }

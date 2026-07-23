@@ -21,46 +21,34 @@ function LanguageSelection() {
   return (
     <div className="language-page">
       <div className="language-container">
-        {/* Heading */}
         <div className="heading">
           <div className="icon">🌐</div>
           <h1>Select Language</h1>
         </div>
-
-        {/* Language Grid */}
-        <div className="language-grid">
+        <div className="language-list">
           {languages.map((lang) => (
             <div
               key={lang.name}
-              className={`language-card ${
+              className={`language-item ${
                 selected === lang.name ? "language-active" : ""
               }`}
               onClick={() => setSelected(lang.name)}
             >
-              <div className="language-text">
-                <h3>{lang.name}</h3>
-                <p>{lang.native}</p>
-              </div>
-
-              {selected === lang.name && (
-                <span className="tick">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M20 6L9 17L4 12"
-                      stroke="white"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-              )}
+              <span>
+                {lang.name}
+                {selected === lang.name && <span className="tick">✔</span>}
+              </span>
             </div>
           ))}
         </div>
 
-        {/* Button */}
-        <button className="next-btn" onClick={() => navigate("/welcome")}>
+        <button
+          className="next-btn"
+          onClick={() => {
+            localStorage.setItem("language", selected);
+            navigate("/Welcome");
+          }}
+        >
           Next
         </button>
       </div>

@@ -5,124 +5,200 @@
     font-family: "Poppins", sans-serif;
 }
 
-body {
-    background: #000;
-    overflow-x: hidden;
+/* ---------- Theme ---------- */
+
+:root {
+    --bg-color: #ffffff;
+    --title-color: #111827;
+    --desc-color: #000000;
+    --pattern: url("../assets/bg-design-light.png");
 }
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #000000;
+        --title-color: #ffffff;
+        --desc-color: #9ca3af;
+        --pattern: url("../assets/bg-design-dark.png");
+    }
+}
+
+/* ---------- Body ---------- */
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    background: var(--bg-color);
+}
+
+a {
+    text-decoration: none;
+}
+
+/* ---------- Main Container ---------- */
 
 .welcome-container {
     width: 100%;
-    min-height: 100vh;
-    background: #121212;
+    height: 100vh;
+
+    background-color: var(--bg-color);
+    background-image: var(--pattern);
+    background-repeat: repeat;
+    background-size: contain;
+    background-position: top left;
 
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
 
-    position: relative;
     overflow: hidden;
 }
 
-.welcome-container::before {
-    content: "";
+/* ---------- Back Button ---------- */
+
+.back-button {
     position: absolute;
-    inset: 0;
-
-    background-image: url("../assets/bg-design-dark.png");
-    background-repeat: repeat;
-    background-position: center;
-    background-size: 320px;
-
-    opacity: 0.30;
-
-    z-index: 1;
+    top: 30px;
+    left: 40px;
+    background: transparent;
+    border: none;
+    color: var(--title-color);
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 100;
 }
+
+/* ---------- Animated Content ---------- */
 
 .welcome-content {
     width: 100%;
     max-width: 700px;
-    transform: translateY(-35px);
-    position: relative;
-    z-index: 2;
 
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-
     text-align: center;
 
     padding: 20px;
 }
 
+/* ---------- Image ---------- */
+
+
 .welcome-image img {
-  
-    height: auto;
-    object-fit: contain;
     width: 340px;
-        margin-bottom: 40px;
+    height: 300px;
+    margin-top: 40px;
 }
+
+/* ---------- Title ---------- */
 
 .welcome-title {
-    color: #fff;
-    font-size: 42px;
-    font-weight: 700;
+    color: var(--title-color);
+    font-size: 39px;
+    font-weight: 400;
     line-height: 1.2;
-    margin-bottom: 22px;
+    margin-bottom: 8px;
 }
+
+/* ---------- Description ---------- */
 
 .welcome-description {
-    color: #9ca3af;
-    font-size: 17px;
+    color: var(--desc-color);
+    font-size: 21px;
     line-height: 28px;
-    margin-bottom: 35px;
+    margin-bottom: 120px;
+    width: 80%;
+
 }
 
+/* Page 1 */
+.desc1 {
+    margin-bottom: 120px;
+
+}
+
+/* Page 2 */
+.desc2 {
+    margin-bottom: 100px;
+}
+
+/* Page 3 */
+.desc3 {
+    margin-bottom: 140px;
+}
+
+/* ---------- Button ---------- */
+
 .next-button {
-    width: 450px;
-    height: 65px;
+    width: 250px;
+    height: 50px;
+
     border: none;
-    border-radius: 18px;
-    background: #2563eb;
+    border-radius: 10px;
+
+    background: #2a3bfb;
     color: white;
-    font-size: 22px;
-    font-weight: 600;
+
+    font-size: 20px;
+    font-weight: 400;
+
     cursor: pointer;
-    margin-top: 10px;
+
+    margin-top: 58px;
 
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px;
 
-    transition: 0.3s;
+    transition: all 0.3s ease;
 }
 
-.next-button:hover {
-    background: #1d4ed8;
-    transform: translateY(-2px);
+.btn1 {
+    margin-top: 70px;
+
 }
+
+
+.btn2 {
+    margin-top: 90px;
+
+}
+
+
+.btn3 {
+    margin-top: 50px;
+
+}
+
+/* ---------- Dots ---------- */
 
 .welcome-dots {
     display: flex;
+    justify-content: center;
     gap: 12px;
-    margin-top: 28px;
-    margin-bottom: 35px;
+    margin-top: 20px;
+    margin-bottom: 55px;
+    margin-top: -10px
 }
 
 .dot {
     width: 10px;
-    height: 10px;
-    background: #555;
-    border-radius: 50%;
+    height: 8px;
+    background: #d3d1d1;
+    border-radius: 40%;
     transition: 0.3s;
 }
 
-.dot.dot-active {
-    width: 32px;
+.dot.active {
+    width: 20px;
     background: #2563eb;
-    border-radius: 20px;
+    border-radius: 4px;
 }
+
+/* ---------- Mobile ---------- */
 
 @media (max-width: 768px) {
     .welcome-image img {
@@ -142,4 +218,8 @@ body {
         width: 100%;
         font-size: 20px;
     }
-}
+
+    .back-button {
+        left: 20px;
+        top: 20px;
+    } }

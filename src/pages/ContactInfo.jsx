@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/ContactInfo.css";
-import Header from "../components/Profile/Header";
+
 
 import {
   ArrowLeft,
@@ -21,6 +21,7 @@ import {
   Star,
   ChevronRight,
 } from "lucide-react";
+import Sidebar from "../components/Profile/Sidebar";
 
 function ContactInfo() {
   const [activeTab, setActiveTab] = useState("photos");
@@ -39,7 +40,7 @@ function ContactInfo() {
   };
   return (
     <>
-      <Header />
+    <Sidebar />
       <div className="contactPage">
         {/* HEADER */}
 

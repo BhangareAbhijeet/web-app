@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import api from "../../services/api";
+
 import {
   FiCamera,
   FiUser,
@@ -12,7 +14,14 @@ import {
 
 import "../../styles/ProfileCover.css";
 
-const ProfileCover = () => {
+const ProfileCover = ({
+  userData,
+  setUserData,
+  isEditingProfile,
+  setIsEditingProfile,
+  phone,
+  setPhone,
+}) => {
   const [coverImage, setCoverImage] = useState(null);
 
   const [profileImage, setProfileImage] = useState(null);
@@ -21,29 +30,32 @@ const ProfileCover = () => {
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    firstName: "",
 
-  const [userData, setUserData] = useState({
-    name: "Your Name",
-
-    username: "@username",
+    lastName: "",
+    phone: "",
   });
 
-  const [editData, setEditData] = useState(userData);
+  useEffect(() => {
+    setEditData({
+      firstName: userData?.firstName || "",
 
-  // Cover Upload
+      lastName: userData?.lastName || "",
+
+      phone: userData?.phone || "",
+    });
+  }, [userData]);
 
   const handleCoverChange = (e) => {
     const file = e.target.files[0];
-    console.log(file);
+
     if (file) {
       setCoverImage(URL.createObjectURL(file));
 
       setShowCoverMenu(false);
     }
   };
-
-  // Profile Upload
 
   const handleProfileChange = (e) => {
     const file = e.target.files[0];
@@ -67,33 +79,68 @@ const ProfileCover = () => {
     setShowProfileMenu(false);
   };
 
-  // Edit
-
   const editProfile = () => {
-    setEditData(userData);
+    setEditData({
+      firstName: userData?.firstName || "",
 
-    setIsEditing(true);
-  };
+      lastName: userData?.lastName || "",
+    });
 
-  const saveProfile = () => {
-    setUserData(editData);
-
-    setIsEditing(false);
+    setIsEditingProfile(true);
   };
 
   const cancelEdit = () => {
-    setEditData(userData);
+    setEditData({
+      firstName: userData?.firstName || "",
 
-    setIsEditing(false);
+      lastName: userData?.lastName || "",
+    });
+
+    setIsEditingProfile(false);
   };
 
+  const saveProfile = async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+
+      const payload = {
+        firstName: editData.firstName,
+        lastName: editData.lastName,
+        phone: phone,
+      };
+
+      const res = await api.put(`/profile/${userId}`, payload);
+
+      // Merge old data + updated data
+      const updatedUser = {
+        ...userData,
+        firstName: editData.firstName,
+        lastName: editData.lastName,
+        phone: phone,
+        ...(res.data.profile || res.data),
+      };
+      // Update parent state immediately
+      setUserData(updatedUser);
+
+      // Update local storage
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      setIsEditingProfile(false);
+    } catch (err) {
+      console.log(err);
+    }
+  };
   return (
     <div className="profile-cover-container">
-      {/* COVER */}
+      {/* Cover Section */}
 
       <div className="cover-container">
-        {coverImage ? (
-          <img src={coverImage} className="cover-image" alt="cover" />
+        {coverImage || userData?.coverImage ? (
+          <img
+            src={coverImage || userData.coverImage}
+            className="cover-image"
+            alt="cover"
+          />
         ) : (
           <div className="cover-placeholder">
             <FiImage />
@@ -121,7 +168,7 @@ const ProfileCover = () => {
                 />
               </label>
 
-              {coverImage && (
+              {(coverImage || userData?.coverImage) && (
                 <button className="dropdown-item" onClick={removeCover}>
                   <FiTrash2 />
                   Remove Cover
@@ -132,12 +179,16 @@ const ProfileCover = () => {
         </div>
       </div>
 
-      {/* PROFILE */}
+      {/* Profile Section */}
 
       <div className="profile-info">
         <div className="profile-image-wrapper">
-          {profileImage ? (
-            <img src={profileImage} className="profile-image" alt="profile" />
+          {profileImage || userData?.profileImage ? (
+            <img
+              src={profileImage || userData.profileImage}
+              className="profile-image"
+              alt="profile"
+            />
           ) : (
             <div className="profile-placeholder">
               <FiUser />
@@ -164,7 +215,7 @@ const ProfileCover = () => {
                   />
                 </label>
 
-                {profileImage && (
+                {(profileImage || userData?.profileImage) && (
                   <button className="dropdown-item" onClick={removeProfile}>
                     <FiTrash2 />
                     Remove Image
@@ -175,48 +226,51 @@ const ProfileCover = () => {
           </div>
         </div>
 
-        {/* USER DETAILS */}
+        {/* Username */}
 
         <div className="user-details">
-          {isEditing ? (
-            <>
+          {isEditingProfile ? (
+            <div className="edit-profile-form">
               <input
                 className="edit-input"
-                value={editData.name}
+                type="text"
+                placeholder="First Name"
+                value={editData.firstName}
                 onChange={(e) =>
                   setEditData({
                     ...editData,
 
-                    name: e.target.value,
+                    firstName: e.target.value,
                   })
                 }
               />
 
               <input
                 className="edit-input"
-                value={editData.username}
+                type="text"
+                placeholder="Last Name"
+                value={editData.lastName}
                 onChange={(e) =>
                   setEditData({
                     ...editData,
 
-                    username: e.target.value,
+                    lastName: e.target.value,
                   })
                 }
               />
-            </>
+            </div>
           ) : (
-            <>
-              <h2 className="user-name">{userData.name}</h2>
-
-              <p className="user-username">{userData.username}</p>
-            </>
+            <h2 className="user-name">
+              {`${userData?.firstName || ""}
+            ${userData?.lastName || ""}`.trim() || "User Name"}
+            </h2>
           )}
         </div>
 
-        {/* RIGHT BUTTON */}
+        {/* Buttons */}
 
         <div className="profile-action">
-          {!isEditing ? (
+          {!isEditingProfile ? (
             <button className="edit-profile-btn" onClick={editProfile}>
               <FiEdit2 />
               Edit Profile
