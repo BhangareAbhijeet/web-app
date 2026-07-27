@@ -13,6 +13,14 @@ const ChatListSidebar = ({
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
+  const getInitials = (name = "") => {
+    const parts = name.trim().split(" ").filter(Boolean);
+
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  };
 
   const filteredChats = chats.filter((chat) =>
     chat.name.toLowerCase().includes(search.toLowerCase()),
@@ -90,12 +98,22 @@ const ChatListSidebar = ({
           >
             <div
               className="chat-avatar"
-              style={{ background: chat.avatarColor, color: chat.textColor }}
+              style={{
+                background: chat.photo ? "transparent" : chat.avatarColor,
+                color: chat.textColor,
+              }}
             >
-              {chat.avatar}
+              {chat.photo ? (
+                <img
+                  src={chat.photo}
+                  alt={chat.name}
+                  className="avatar-image"
+                />
+              ) : (
+                <span>{getInitials(chat.name)}</span>
+              )}
               {chat.online && <span className="online-dot"></span>}
             </div>
-
             <div className="chat-info">
               <div className="top">
                 <h4>{chat.name}</h4>

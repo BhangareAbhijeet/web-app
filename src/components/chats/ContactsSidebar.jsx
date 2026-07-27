@@ -65,102 +65,252 @@ function ContactsSidebar({ onSelectContact, onBack }) {
   );
 
   return (
-    <aside className="contacts-sidebar">
-      <div className="contacts-sidebar-header">
-        <div className="contacts-title-row">
-          <button
-            className="icon-btn"
-            aria-label="Back to chats"
-            onClick={onBack}
-          >
-            <BackIcon />
-          </button>
-          <h1>Contacts</h1>
-        </div>
-      </div>
-
-      <div className="contacts-search">
-        <SearchIcon className="contacts-search-icon" />
-        <input
-          type="text"
-          placeholder="Search contacts..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </div>
-
-      <button className="action-row">
-        <span className="action-icon">
-          <PlusCircleIcon />
-        </span>
-        <span className="action-text">
-          <span className="action-title">New Group</span>
-          <span className="action-subtitle">Tap to create a group</span>
-        </span>
-      </button>
-
-      <button className="action-row">
-        <span className="action-icon">
-          <UserPlusIcon />
-        </span>
-        <span className="action-text">
-          <span className="action-title">Invite Friends</span>
-          <span className="action-subtitle">Invite friends to join</span>
-        </span>
-      </button>
-
-      <div className="contacts-list-label">Contacts on LokChat</div>
-
-      {loading && (
-        <div className="contacts-status-msg contacts-loading">
-          <span className="spinner" />
-          Loading contacts...
-        </div>
-      )}
-      {error && <div className="contacts-status-msg">{error}</div>}
-      {!loading && !error && filteredContacts.length === 0 && (
-        <div className="contacts-status-msg">No contacts found</div>
-      )}
-
-      <ul className="contacts-list">
-        {filteredContacts.map((contact) => (
-          <li
-            key={contact.id}
-            className="contact-item"
-            onClick={() => onSelectContact(contact)}
-          >
-            {/* Avatar */}
-            <div
-              className="avatar"
-              style={{
-                background: contact.avatarColor,
-                color: contact.textColor,
-              }}
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent chat from opening
-                navigate(`/contactinfo/${contact.id}`, {
-                  state: { contact },
-                });
-              }}
+    <div className="contacts-page">
+  
+      {/* LEFT CONTACTS SIDEBAR */}
+      <aside className="contacts-sidebar">
+  
+        <div className="contacts-sidebar-header">
+          <div className="contacts-title-row">
+  
+            <button
+              className="icon-btn"
+              aria-label="Back to chats"
+              onClick={onBack}
             >
-              {contact.photo ? (
-                <img src={contact.photo} alt={contact.name} />
-              ) : (
-                contact.initials
-              )}
-
-              {contact.online && <span className="status-dot" />}
-            </div>
-
-            {/* Contact Info */}
-            <div className="contact-info">
-              <span className="contact-name">{contact.name}</span>
-              <span className="contact-status">{contact.status}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </aside>
+              <BackIcon />
+            </button>
+  
+            <h1>Contacts</h1>
+  
+          </div>
+        </div>
+  
+  
+        {/* Search */}
+        <div className="contacts-search">
+  
+          <SearchIcon className="contacts-search-icon" />
+  
+          <input
+            type="text"
+            placeholder="Search contacts..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+  
+        </div>
+  
+  
+  
+        {/* New Group */}
+        <button className="action-row">
+  
+          <span className="action-icon">
+            <PlusCircleIcon />
+          </span>
+  
+  
+          <span className="action-text">
+  
+            <span className="action-title">
+              New Group
+            </span>
+  
+  
+            <span className="action-subtitle">
+              Tap to create a group
+            </span>
+  
+          </span>
+  
+        </button>
+  
+  
+  
+        {/* Invite Friends */}
+        <button className="action-row">
+  
+          <span className="action-icon">
+            <UserPlusIcon />
+          </span>
+  
+  
+          <span className="action-text">
+  
+            <span className="action-title">
+              Invite Friends
+            </span>
+  
+  
+            <span className="action-subtitle">
+              Invite friends to join
+            </span>
+  
+          </span>
+  
+        </button>
+  
+  
+  
+        <div className="contacts-list-label">
+          Contacts on LokChat
+        </div>
+  
+  
+  
+        {loading && (
+          <div className="contacts-status-msg contacts-loading">
+            <span className="spinner"></span>
+            Loading contacts...
+          </div>
+        )}
+  
+  
+  
+        {error && (
+          <div className="contacts-status-msg">
+            {error}
+          </div>
+        )}
+  
+  
+  
+        {!loading && !error && filteredContacts.length === 0 && (
+  
+          <div className="contacts-status-msg">
+            No contacts found
+          </div>
+  
+        )}
+  
+  
+  
+  
+        {/* Contacts List */}
+        <ul className="contacts-list">
+  
+          {filteredContacts.map((contact) => (
+  
+            <li
+              key={contact.id}
+              className="contact-item"
+              onClick={() => onSelectContact(contact)}
+            >
+  
+  
+  
+              {/* Avatar */}
+              <div
+                className="avatar"
+  
+                style={{
+                  background: contact.avatarColor,
+                  color: contact.textColor,
+                }}
+  
+  
+                onClick={(e) => {
+  
+                  e.stopPropagation();
+  
+                  navigate(`/contactinfo/${contact.id}`, {
+                    state: { contact },
+                  });
+  
+                }}
+  
+              >
+  
+  
+                {contact.photo ? (
+  
+                  <img
+                    src={contact.photo}
+                    alt={contact.name}
+                  />
+  
+                ) : (
+  
+                  contact.initials
+  
+                )}
+  
+  
+  
+                {contact.online && (
+                  <span className="status-dot"></span>
+                )}
+  
+  
+              </div>
+  
+  
+  
+  
+  
+              {/* Contact Details */}
+              <div className="contact-info">
+  
+                <span className="contact-name">
+                  {contact.name}
+                </span>
+  
+  
+                <span className="contact-status">
+                  {contact.status}
+                </span>
+  
+  
+              </div>
+  
+  
+  
+            </li>
+  
+  
+          ))}
+  
+  
+        </ul>
+  
+  
+      </aside>
+  
+  
+  
+  
+  
+      {/* RIGHT EMPTY CHAT AREA */}
+      <div className="contacts-empty">
+  
+  
+       
+  
+  
+  
+        <h1>
+          LokChat
+        </h1>
+  
+  
+  
+        <p>
+          Select a contact to start chatting
+        </p>
+  
+  
+  
+        <span>
+          🔒 Your messages are private and secure
+        </span>
+  
+  
+  
+      </div>
+  
+  
+    </div>
   );
 }
 

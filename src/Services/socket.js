@@ -1,7 +1,16 @@
 import { io } from "socket.io-client";
 
-const socket = io("https://avelina-synonymical-leticia.ngrok-free.dev", {
-  transports: ["websocket"],
+const socket = io("http://localhost:5000", {
+  transports: ["polling", "websocket"],
+  reconnection: true,
+});
+
+socket.on("connect", () => {
+  console.log("✅ SOCKET CONNECTED:", socket.id);
+});
+
+socket.on("connect_error", (error) => {
+  console.log("❌ SOCKET CONNECTION ERROR:", error.message);
 });
 
 export default socket;

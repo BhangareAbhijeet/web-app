@@ -7,9 +7,7 @@ import callImg from "../assets/no-calls-image.png";
 const Calls = () => {
   return (
     <>
-    
-
-      <div className="calls-container">
+          <div className="calls-container">
         {/* Left Panel */}
         <div className="calls-sidebar">
           <div className="sidebar-header">

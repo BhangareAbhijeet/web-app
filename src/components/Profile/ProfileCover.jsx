@@ -26,6 +26,10 @@ const ProfileCover = ({
 
   const [profileImage, setProfileImage] = useState(null);
 
+  // Actual files to send to backend
+  const [profileFile, setProfileFile] = useState(null);
+  const [coverFile, setCoverFile] = useState(null);
+
   const [showCoverMenu, setShowCoverMenu] = useState(false);
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -47,11 +51,13 @@ const ProfileCover = ({
     });
   }, [userData]);
 
+   
   const handleCoverChange = (e) => {
     const file = e.target.files[0];
 
     if (file) {
-      setCoverImage(URL.createObjectURL(file));
+      setCoverFile(file); // Store actual file
+      setCoverImage(URL.createObjectURL(file)); // Preview
 
       setShowCoverMenu(false);
     }
@@ -59,10 +65,11 @@ const ProfileCover = ({
 
   const handleProfileChange = (e) => {
     const file = e.target.files[0];
-
+  
     if (file) {
-      setProfileImage(URL.createObjectURL(file));
-
+      setProfileFile(file); // Store actual file
+      setProfileImage(URL.createObjectURL(file)); // Preview
+  
       setShowProfileMenu(false);
     }
   };
@@ -102,15 +109,20 @@ const ProfileCover = ({
   const saveProfile = async () => {
     try {
       const userId = localStorage.getItem("userId");
+      const formData = new FormData();
 
-      const payload = {
-        firstName: editData.firstName,
-        lastName: editData.lastName,
-        phone: phone,
-      };
+      formData.append("firstName", editData.firstName);
+      formData.append("lastName", editData.lastName);
+      formData.append("phone", phone);
 
-      const res = await api.put(`/profile/${userId}`, payload);
+      if (profileFile) {
+        formData.append("profilePic", profileFile);
+      }
 
+      if (coverFile) {
+        formData.append("coverPic", coverFile);
+      }
+      const res = await api.put(`/profile/${userId}`, formData);
       // Merge old data + updated data
       const updatedUser = {
         ...userData,
@@ -135,9 +147,9 @@ const ProfileCover = ({
       {/* Cover Section */}
 
       <div className="cover-container">
-        {coverImage || userData?.coverImage ? (
+        {coverImage || userData?.coverPic?.url ? (
           <img
-            src={coverImage || userData.coverImage}
+            src={coverImage || userData.coverPic.url}
             className="cover-image"
             alt="cover"
           />
@@ -168,7 +180,7 @@ const ProfileCover = ({
                 />
               </label>
 
-              {(coverImage || userData?.coverImage) && (
+              {(coverImage || userData?.coverPic?.url) && (
                 <button className="dropdown-item" onClick={removeCover}>
                   <FiTrash2 />
                   Remove Cover
@@ -183,9 +195,9 @@ const ProfileCover = ({
 
       <div className="profile-info">
         <div className="profile-image-wrapper">
-          {profileImage || userData?.profileImage ? (
+          {profileImage || userData?.profilePic?.url ? (
             <img
-              src={profileImage || userData.profileImage}
+              src={profileImage || userData.profilePic.url}
               className="profile-image"
               alt="profile"
             />
@@ -215,7 +227,7 @@ const ProfileCover = ({
                   />
                 </label>
 
-                {(profileImage || userData?.profileImage) && (
+                {(profileImage || userData?.profilePic?.url) && (
                   <button className="dropdown-item" onClick={removeProfile}>
                     <FiTrash2 />
                     Remove Image
@@ -292,6 +304,6 @@ const ProfileCover = ({
       </div>
     </div>
   );
-};
+};;
 
 export default ProfileCover;

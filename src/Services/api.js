@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://api.lokchat.techiolazainnovations.in/api",
+  baseURL: import.meta.env.VITE_UNI_LOKCHAT_API_URL ,
 });
 
 api.interceptors.request.use((config) => {

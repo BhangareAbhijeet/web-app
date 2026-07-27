@@ -339,6 +339,54 @@
     flex-shrink: 0;
 }
 
+/* ===== Right Empty Chat Area ===== */
+
+.contacts-empty {
+    flex: 1;
+    height: 100vh;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+}
+
+
+.contacts-empty .empty-icon {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: #111b21;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 50px;
+    margin-bottom: 25px;
+}
+
+
+.contacts-empty h1 {
+    font-size: 32px;
+    margin: 10px 0;
+    color: #ffffff;
+}
+
+
+.contacts-empty p {
+    color: #8696a0;
+    font-size: 16px;
+}
+
+
+.contacts-empty span {
+    position: absolute;
+    bottom: 40px;
+    color: #8696a0;
+    font-size: 13px;
+}
+
 @keyframes spin {
     to {
         transform: rotate(360deg);
