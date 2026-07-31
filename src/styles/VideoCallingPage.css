@@ -1,0 +1,377 @@
+/* ===========================
+   ROOT
+=========================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.videoPage {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+    transition: .35s;
+    font-family: Inter, sans-serif;
+}
+
+/* ===========================
+   LIGHT / DARK THEME
+=========================== */
+
+.videoPage.dark {
+    background: #000;
+}
+
+.videoPage.light {
+    background: #f3f5f9;
+}
+
+/* ===========================
+   REMOTE VIDEO
+=========================== */
+
+.remoteVideo {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.remoteImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #111;
+}
+
+/* Overlay */
+
+.videoPage.dark .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom,
+            rgba(0, 0, 0, .55),
+            rgba(0, 0, 0, .05),
+            rgba(0, 0, 0, .6));
+}
+
+.videoPage.light .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom,
+            rgba(255, 255, 255, .08),
+            rgba(255, 255, 255, 0),
+            rgba(0, 0, 0, .18));
+}
+
+/* ===========================
+   USER DETAILS
+=========================== */
+
+.userDetails {
+
+    position: absolute;
+    top: 25px;
+    left: 30px;
+
+    display: flex;
+    align-items: center;
+    gap: 18px;
+
+    z-index: 20;
+
+}
+
+.profile {
+
+    width: 68px;
+    height: 68px;
+
+    border-radius: 50%;
+    object-fit: cover;
+
+    border: 3px solid white;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, .3);
+
+}
+
+.userDetails h2 {
+
+    font-size: 30px;
+    font-weight: 700;
+
+    margin-bottom: 5px;
+
+}
+
+.videoPage.dark .userDetails h2 {
+    color: #fff;
+}
+
+.videoPage.light .userDetails h2 {
+    color: #111;
+}
+
+.userDetails p {
+
+    font-size: 16px;
+    font-weight: 500;
+
+}
+
+.videoPage.dark .userDetails p {
+    color: #ddd;
+}
+
+.videoPage.light .userDetails p {
+    color: #444;
+}
+
+/* ===========================
+   SELF CAMERA
+=========================== */
+
+.selfCamera {
+
+    position: absolute;
+
+    bottom: 120px;
+    right: 35px;
+
+    width: 270px;
+    height: 190px;
+
+    border-radius: 22px;
+    overflow: hidden;
+
+    border: 3px solid white;
+
+    background: #222;
+
+    box-shadow: 0 10px 35px rgba(0, 0, 0, .45);
+
+    transition: .3s;
+
+}
+
+.selfCamera:hover {
+
+    transform: scale(1.03);
+
+}
+
+.selfVideo {
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+
+}
+
+/* ===========================
+   CONTROLS
+=========================== */
+
+.controls {
+
+    position: absolute;
+
+    bottom: 30px;
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    display: flex;
+    align-items: center;
+    gap: 18px;
+
+    padding: 18px 28px;
+
+    border-radius: 70px;
+
+    backdrop-filter: blur(15px);
+
+    z-index: 50;
+
+}
+
+.videoPage.dark .controls {
+
+    background: rgba(35, 35, 35, .85);
+
+}
+
+.videoPage.light .controls {
+
+    background: rgba(255, 255, 255, .85);
+
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
+
+}
+
+.controls button {
+
+    width: 65px;
+    height: 65px;
+
+    border: none;
+    border-radius: 50%;
+
+    cursor: pointer;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 28px;
+
+    transition: .25s;
+
+}
+
+.videoPage.dark .controls button {
+
+    background: #3b3b3b;
+    color: white;
+
+}
+
+.videoPage.light .controls button {
+
+    background: #ececec;
+    color: #111;
+
+}
+
+.controls button:hover {
+
+    transform: translateY(-3px) scale(1.08);
+
+}
+
+.endBtn {
+
+    background: #ff3b30 !important;
+    color: white !important;
+
+}
+
+.endBtn:hover {
+
+    background: #d60000 !important;
+
+}
+
+/* ===========================
+   TABLET
+=========================== */
+
+@media(max-width:768px) {
+
+    .selfCamera {
+
+        width: 180px;
+        height: 130px;
+
+        right: 15px;
+
+    }
+
+    .profile {
+
+        width: 55px;
+        height: 55px;
+
+    }
+
+    .userDetails h2 {
+
+        font-size: 22px;
+
+    }
+
+    .controls {
+
+        gap: 12px;
+        padding: 12px 18px;
+
+    }
+
+    .controls button {
+
+        width: 55px;
+        height: 55px;
+
+        font-size: 22px;
+
+    }
+
+}
+
+/* ===========================
+   MOBILE
+=========================== */
+
+@media(max-width:480px) {
+
+    .userDetails {
+
+        left: 15px;
+        top: 15px;
+
+    }
+
+    .profile {
+
+        width: 48px;
+        height: 48px;
+
+    }
+
+    .userDetails h2 {
+
+        font-size: 18px;
+
+    }
+
+    .userDetails p {
+
+        font-size: 13px;
+
+    }
+
+    .selfCamera {
+
+        width: 130px;
+        height: 95px;
+
+        right: 10px;
+        bottom: 110px;
+
+    }
+
+    .controls {
+
+        width: 95%;
+
+        justify-content: space-evenly;
+
+        padding: 10px;
+
+        gap: 5px;
+
+    }
+
+    .controls button {
+
+        width: 50px;
+        height: 50px;
+
+        font-size: 20px;
+
+    }
+
+}

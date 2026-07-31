@@ -16,6 +16,8 @@ import Profile from "./pages/Profile";
 import ContactInfo from "./pages/ContactInfo";
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyOTP from "./pages/VerifyOTP";
+import VideoCallingPage from "./pages/VideoCallingPage";
+import VoiceCall from "./components/VoiceCall";
 
 
 function App() {
@@ -30,7 +32,7 @@ function App() {
         <Route path="/selectionpage" element={<SelectionPage />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />
-     
+
         {/* Pages WITH Sidebar */}
         <Route element={<MainLayout />}>
           <Route path="/messages" element={<ChatPage />} />
@@ -38,6 +40,9 @@ function App() {
           <Route path="/calls" element={<Calls />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/contactinfo/:id" element={<ContactInfo />} />
+          <Route path="/video-call" element={<VideoCallingPage />} />
+
+          <Route path="/voice-call" element={<VoiceCall />} />
         </Route>
       </Routes>
     </BrowserRouter>

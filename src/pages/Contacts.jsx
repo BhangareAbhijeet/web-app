@@ -8,7 +8,11 @@ function Contacts() {
     <ContactsSidebar
       onBack={() => navigate("/messages")}
       onSelectContact={(contact) => {
-        navigate("/messages");
+        navigate("/messages", {
+          state: {
+            selectedContact: contact,
+          },
+        });
       }}
     />
   );

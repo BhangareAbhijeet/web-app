@@ -14,7 +14,11 @@ import {
   FiPaperclip,
   FiUsers,
   FiUser,
+  FiSend,
+  FiChevronDown,
+  FiVideo,
 } from "react-icons/fi";
+import EmojiPicker from "emoji-picker-react";
 
 import Header from "../components/profile/Sidebar";
 import "../styles/ChatPage.css";
@@ -23,17 +27,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 // ---------------------------------------------------------------------------
 // CONFIG — adjust these three to match your existing backend setup
 // ---------------------------------------------------------------------------
-// ADJUST: base URL of your existing Express server
 const SOCKET_URL = "http://localhost:5000";
 const API_BASE_URL = "http://localhost:5000/api";
 console.log("Socket URL:", API_BASE_URL);
-// ADJUST: whatever key you already use to store the JWT after login
 const AUTH_TOKEN_KEY = "token";
-// ADJUST: whatever key you already use to store the logged-in user object after login
 const AUTH_USER_KEY = "user";
 
-// axios instance — every request automatically carries the JWT your
-// authMiddleware.js expects (typically `Authorization: Bearer <token>`)
 const api = axios.create({
   baseURL: API_BASE_URL,
 });
@@ -46,9 +45,7 @@ api.interceptors.request.use((config) => {
 });
 
 // ---------------------------------------------------------------------------
-// ENDPOINTS — ADJUST these to exactly match your messageRoutes.js.
-// Everything else in this file is written against these five calls, so if
-// your real route names differ, this is the only block you need to edit.
+// ENDPOINTS
 // ---------------------------------------------------------------------------
 const ENDPOINTS = {
   chatList: () => "/users",
@@ -60,7 +57,7 @@ const ENDPOINTS = {
 };
 
 // ---------------------------------------------------------------------------
-// SOCKET.IO — ADJUST event names to match socket.js on the server.
+// SOCKET.IO
 // ---------------------------------------------------------------------------
 const SOCKET_EVENTS = {
   newMessage: "getMessage",
@@ -109,7 +106,7 @@ const getInitials = (name = "") => {
 };
 
 // ---------------------------------------------------------------------------
-// Time helpers (unchanged from the reference version)
+// Time helpers
 // ---------------------------------------------------------------------------
 const formatMessageTime = (dateTimeInput) => {
   if (!dateTimeInput) return "";
@@ -147,21 +144,44 @@ const formatBubbleTime = (dateTimeInput) => {
   });
 };
 
+const formatLastSeen = (lastSeenInput) => {
+  if (!lastSeenInput) return "Offline";
+  const date = new Date(lastSeenInput);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const time = date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  if (isToday) return `last seen today at ${time}`;
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+  if (isYesterday) return `last seen yesterday at ${time}`;
+
+  return `last seen ${date.toLocaleDateString([], {
+    day: "numeric",
+    month: "short",
+  })} at ${time}`;
+};
+
 // ---------------------------------------------------------------------------
 // Message-shape helpers
-// --------------------------------------------------------------------------
-// Your Message model uses { sender, receiver, text, type, read, delivered,
-// seen, createdAt }. `sender`/`receiver` are ObjectId refs — normalize to
-// plain string ids here so the rest of the component can compare simply.
 // ---------------------------------------------------------------------------
 const normalizeMessage = (msg) => ({
   id: msg._id || msg.id,
-
   text: msg.text,
-
   translatedText: msg.translatedText,
-
   type: msg.type || "text",
+
+  mediaUrl:
+    msg.mediaUrl ||
+    msg.image ||
+    msg.file ||
+    msg.url ||
+    (msg.type === "image" || msg.type === "audio" ? msg.text : null),
 
   senderId: typeof msg.sender === "object" ? msg.sender?._id : msg.sender,
 
@@ -178,6 +198,9 @@ const normalizeMessage = (msg) => ({
   delivered: Boolean(msg.delivered),
   seen: Boolean(msg.seen),
 
+  deleted: Boolean(msg.deleted),
+  deletedFor: msg.deletedFor || [],
+
   createdAt: msg.createdAt,
 });
 
@@ -185,7 +208,7 @@ const isAudioMessage = (chat) => chat.lastMessage?.type === "audio";
 const isImageMessage = (chat) => chat.lastMessage?.type === "image";
 
 const ChatPage = () => {
-  const currentUser = getCurrentUser(); // ADJUST if you fetch the user differently
+  const currentUser = getCurrentUser();
   const currentUserId = currentUser?._id || currentUser?.id;
 
   const [selectedChat, setSelectedChat] = useState(null);
@@ -193,6 +216,19 @@ const ChatPage = () => {
   const [showUnread, setShowUnread] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const selectedContact = location.state?.selectedContact;
+
+    if (selectedContact) {
+      handleSelectChat(selectedContact);
+
+      navigate("/messages", {
+        replace: true,
+        state: null,
+      });
+    }
+  }, [location.state]);
 
   const activeNav =
     location.pathname === "/messages"
@@ -204,6 +240,7 @@ const ChatPage = () => {
           : location.pathname === "/profile"
             ? "profile"
             : "messages";
+
   // ---- Backend-driven state ---------------------------------------------
   const [chats, setChats] = useState([]);
   const [sidebarView, setSidebarView] = useState("chats");
@@ -211,14 +248,50 @@ const ChatPage = () => {
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [chatsError, setChatsError] = useState(null);
 
-  const [messages, setMessages] = useState({}); // { [userId]: normalizedMessage[] }
+  const [allContacts, setAllContacts] = useState([]);
+
+  const [messages, setMessages] = useState({});
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [conversationError, setConversationError] = useState(null);
 
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
 
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  const [activeMenuMessageId, setActiveMenuMessageId] = useState(null);
+
   const socketRef = useRef(null);
+  const selectedChatIdRef = useRef(null);
+
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const pickerRef = useRef(null);
+  const emojiBtnRef = useRef(null);
+  const inputRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    selectedChatIdRef.current = selectedChat?.id || null;
+  }, [selectedChat]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    const updated = chats.find((c) => c.id === selectedChat.id);
+    if (
+      updated &&
+      (updated.online !== selectedChat.online ||
+        updated.lastSeen !== selectedChat.lastSeen)
+    ) {
+      setSelectedChat((prev) =>
+        prev
+          ? { ...prev, online: updated.online, lastSeen: updated.lastSeen }
+          : prev,
+      );
+    }
+  }, [chats, selectedChat]);
 
   const shouldHighlightUnread = useCallback(
     (chat) => {
@@ -248,57 +321,255 @@ const ChatPage = () => {
     [currentUserId],
   );
 
+  const handleEmoji = (emojiData) => {
+    setMessageInput((prev) => prev + emojiData.emoji);
+
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+
+      const recorder = new MediaRecorder(stream);
+
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        audioChunksRef.current.push(e.data);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Recording error:", err);
+    }
+  };
+
+  const stopRecording = () => {
+    const recorder = mediaRecorderRef.current;
+
+    if (!recorder) return;
+
+    recorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunksRef.current, {
+        type: recorder.mimeType || "audio/webm",
+      });
+
+      const formData = new FormData();
+      formData.append("file", audioBlob, "voice.webm");
+      formData.append("sender", currentUserId);
+      formData.append("receiver", selectedChat.id);
+      formData.append("type", "audio");
+
+      try {
+        const res = await api.post("/messages/send-file", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        const newMessage = normalizeMessage(res.data.message);
+
+        setMessages((prev) => ({
+          ...prev,
+          [selectedChat.id]: [...(prev[selectedChat.id] || []), newMessage],
+        }));
+
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === selectedChat.id
+              ? {
+                  ...chat,
+                  lastMessage: newMessage,
+                }
+              : chat,
+          ),
+        );
+      } catch (err) {
+        console.error(err.response?.data || err.message);
+      } finally {
+        recorder.stream.getTracks().forEach((track) => track.stop());
+
+        audioChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        setIsRecording(false);
+      }
+    };
+
+    recorder.stop();
+  };
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+
+    if (!file || !selectedChat) return;
+
+    if (!file.type.startsWith("image/")) {
+      console.log("Only images allowed");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+
+      formData.append("file", file);
+      formData.append("sender", currentUserId);
+      formData.append("receiver", selectedChat.id);
+      formData.append("senderLanguage", currentUser?.language || "en");
+      formData.append("receiverLanguage", selectedChat?.language || "en");
+      formData.append("type", "image");
+
+      const res = await api.post("/messages/send-file", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const newMessage = normalizeMessage(res.data.message);
+
+      setMessages((prev) => ({
+        ...prev,
+        [selectedChat.id]: [...(prev[selectedChat.id] || []), newMessage],
+      }));
+
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === selectedChat.id
+            ? {
+                ...chat,
+                lastMessage: newMessage,
+              }
+            : chat,
+        ),
+      );
+    } catch (error) {
+      console.error(error.response?.data || error.message);
+    } finally {
+      setSelectedFile(null);
+      e.target.value = "";
+    }
+  };
+
   // =========================================================================
-  // 1. Fetch chat list (sidebar) from the existing backend
+  // 1. Fetch chat list
+  // =========================================================================
   const fetchChatList = useCallback(async () => {
     setIsLoadingChats(true);
     setChatsError(null);
 
     try {
-      const res = await api.get("/users");
+      const res = await api.get(`/messages/user/${currentUserId}`);
+      const allMessages = Array.isArray(res.data) ? res.data : [];
 
-      console.log("CONTACTS API DATA:", res.data);
+      const conversationMap = new Map();
 
-      const data = Array.isArray(res.data) ? res.data : [];
+      for (const msg of allMessages) {
+        const sender = msg.sender;
+        const receiver = msg.receiver;
 
-      const mapped = data.map((u) => ({
-        id: u._id,
-        name: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
-        photo: u.profilePic?.url || null,
-        online: !!u.isOnline,
-        unread: 0,
-        lastMessage: {
-          text: "Tap to start chatting",
-          type: "text",
-          senderId: null,
-          createdAt: null,
-          read: true,
-        },
-      }));
+        if (!sender || !receiver) continue;
+        if (sender._id === receiver._id) continue;
 
-      console.log("Mapped Chats:", mapped);
+        const isSender = sender._id === currentUserId;
+        const isReceiver = receiver._id === currentUserId;
+        if (!isSender && !isReceiver) continue;
+
+        const otherUser = isSender ? receiver : sender;
+        const otherId = otherUser._id;
+        const normalized = normalizeMessage(msg);
+
+        const existing = conversationMap.get(otherId) || {
+          userInfo: otherUser,
+          lastMessage: null,
+          unreadCount: 0,
+        };
+
+        const msgTime = new Date(msg.createdAt).getTime();
+        const existingTime = existing.lastMessage
+          ? new Date(existing.lastMessage.createdAt).getTime()
+          : -Infinity;
+
+        if (msgTime > existingTime) {
+          existing.lastMessage = normalized;
+        }
+
+        if (isReceiver && !normalized.read) {
+          existing.unreadCount += 1;
+        }
+
+        conversationMap.set(otherId, existing);
+      }
+
+      const conversations = Array.from(conversationMap.values()).sort(
+        (a, b) =>
+          new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt),
+      );
+
+      const mapped = conversations.map(
+        ({ userInfo: u, lastMessage, unreadCount }) => ({
+          id: u._id,
+          name: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+          photo: u.profilePic?.url || null,
+          online: !!u.isOnline,
+          unread: unreadCount,
+          lastMessage,
+        }),
+      );
 
       setChats(mapped);
     } catch (err) {
-      console.error("Failed to fetch users:", err);
+      console.error("Failed to fetch chat list:", err);
       setChatsError("Failed to load chats");
     } finally {
       setIsLoadingChats(false);
     }
-  }, []);
+  }, [currentUserId]);
 
   // =========================================================================
-  // 2. Fetch full conversation when a chat is opened + mark it read
+  // 1b. Fetch all registered contacts
   // =========================================================================
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    api
+      .get("/users")
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        const mapped = data
+          .filter((u) => u._id !== currentUserId)
+          .map((u) => ({
+            id: u._id,
+            name: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+            photo: u.profilePic?.url || null,
+            online: !!u.isOnline,
+            lastSeen: u.lastSeen || null,
+          }));
+
+        setAllContacts(mapped);
+      })
+      .catch((err) =>
+        console.error("Failed to fetch contacts for search:", err),
+      );
+  }, [currentUserId]);
+
   // =========================================================================
   // 2. Mark conversation as read
   // =========================================================================
-
   const markConversationRead = useCallback(async (userId) => {
     try {
       await api.patch(ENDPOINTS.markRead(userId, currentUserId));
+
+      socketRef.current?.emit("markAsRead", {
+        senderId: userId,
+        receiverId: currentUserId,
+      });
     } catch (err) {
-      // Non-fatal — sidebar badge still clears locally below
       console.error("Failed to mark conversation as read:", err);
     }
     setChats((prev) =>
@@ -314,10 +585,20 @@ const ChatPage = () => {
           : c,
       ),
     );
+
+    setMessages((prev) => {
+      if (!prev[userId]) return prev;
+      return {
+        ...prev,
+        [userId]: prev[userId].map((m) =>
+          m.senderId === userId ? { ...m, read: true, seen: true } : m,
+        ),
+      };
+    });
   }, []);
 
   // =========================================================================
-  // 3. Fetch full conversation when a chat is opened
+  // 3. Fetch full conversation
   // =========================================================================
   const fetchConversation = useCallback(
     async (userId) => {
@@ -325,14 +606,7 @@ const ChatPage = () => {
       setConversationError(null);
 
       try {
-        console.log("Current User ID:", currentUserId);
-        console.log("Selected User ID:", userId);
-        console.log("URL:", `/messages/${currentUserId}/${userId}`);
-
         const res = await api.get(`/messages/${currentUserId}/${userId}`);
-
-        console.log("Conversation API Response:", res.data);
-        console.log("Conversation API Response:", res.data);
 
         const data = Array.isArray(res.data)
           ? res.data
@@ -340,15 +614,12 @@ const ChatPage = () => {
 
         const normalized = data.map(normalizeMessage);
 
-        console.log("Normalized Messages:", normalized);
-
         setMessages((prev) => ({
           ...prev,
           [userId]: normalized,
         }));
       } catch (err) {
         console.error("Failed to load conversation:", err);
-        console.error("Response:", err.response?.data);
         setConversationError("Couldn't load this conversation.");
       } finally {
         setIsLoadingConversation(false);
@@ -358,7 +629,7 @@ const ChatPage = () => {
   );
 
   // =========================================================================
-  // 4. Mount: load chat list + connect Socket.IO
+  // 4a. Mount: load chat list + connect Socket.IO
   // =========================================================================
   useEffect(() => {
     fetchChatList();
@@ -366,25 +637,16 @@ const ChatPage = () => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
     const socket = io(SOCKET_URL, {
-      auth: {
-        token,
-      },
+      auth: { token },
     });
 
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
-
       socket.emit("addUser", currentUserId);
     });
 
-    // ==========================
-    // Receive New Message
-    // ==========================
     socket.on("getMessage", (data) => {
-      console.log("📩 Received Message:", data);
-
       const msg = normalizeMessage({
         _id: data.messageId,
         sender: data.senderId,
@@ -401,92 +663,113 @@ const ChatPage = () => {
       const otherUserId =
         msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
 
-      // Add message to conversation
-      setMessages((prev) => ({
-        ...prev,
-        [otherUserId]: [...(prev[otherUserId] || []), msg],
-      }));
+      setMessages((prev) => {
+        const existing = prev[otherUserId] || [];
 
-      // Update sidebar
-      setChats((prev) =>
-        prev.map((chat) => {
-          if (chat.id !== otherUserId) return chat;
+        if (existing.some((m) => m.id === msg.id)) {
+          return prev;
+        }
 
-          const isOpen = selectedChat?.id === otherUserId;
+        return {
+          ...prev,
+          [otherUserId]: [...existing, msg],
+        };
+      });
 
-          return {
-            ...chat,
+      setChats((prev) => {
+        const exists = prev.some((chat) => chat.id === otherUserId);
+
+        if (!exists) {
+          const contactInfo = allContacts.find((c) => c.id === otherUserId);
+
+          const newChat = {
+            id: otherUserId,
+            name: contactInfo?.name || "Unknown User",
+            photo: contactInfo?.photo || null,
+            online: contactInfo?.online || false,
+            unread: msg.senderId !== currentUserId ? 1 : 0,
             lastMessage: msg,
-            unread: isOpen ? 0 : (chat.unread || 0) + 1,
           };
-        }),
-      );
 
-      // Mark messages as read if chat is open
-      if (selectedChat?.id === otherUserId) {
+          return [newChat, ...prev];
+        }
+
+        const updatedChats = prev.map((chat) =>
+          chat.id === otherUserId
+            ? {
+                ...chat,
+                lastMessage: msg,
+                unread:
+                  selectedChatIdRef.current === otherUserId
+                    ? 0
+                    : (chat.unread || 0) + 1,
+              }
+            : chat,
+        );
+
+        const updatedChat = updatedChats.find((c) => c.id === otherUserId);
+        const otherChats = updatedChats.filter((c) => c.id !== otherUserId);
+
+        return [updatedChat, ...otherChats];
+      });
+
+      if (selectedChatIdRef.current === otherUserId) {
         markConversationRead(otherUserId);
       }
     });
 
-    // ==========================
-    // Online Users
-    // ==========================
     socket.on("getUsers", (onlineUserIds) => {
-      console.log("🟢 Online Users:", onlineUserIds);
-
       setChats((prev) =>
         prev.map((chat) => ({
           ...chat,
           online: onlineUserIds.includes(chat.id),
         })),
       );
+
+      setAllContacts((prev) =>
+        prev.map((contact) => ({
+          ...contact,
+          online: onlineUserIds.includes(contact.id),
+        })),
+      );
     });
 
-    // ==========================
-    // Message Status
-    // ==========================
     socket.on("messageStatus", (data) => {
-      console.log("📦 Message Status:", data);
-
       setMessages((prev) => {
         const updated = { ...prev };
-
         Object.keys(updated).forEach((userId) => {
           updated[userId] = updated[userId].map((m) =>
             m.id === data.messageId
-              ? {
-                  ...m,
-                  delivered: data.status === "delivered",
-                }
+              ? { ...m, delivered: data.status === "delivered" }
               : m,
           );
         });
-
         return updated;
       });
     });
 
-    // ==========================
-    // Messages Seen
-    // ==========================
     socket.on("messagesSeen", ({ receiverId }) => {
-      console.log("👀 Messages Seen:", receiverId);
-
       setMessages((prev) => {
         if (!prev[receiverId]) return prev;
 
         return {
           ...prev,
           [receiverId]: prev[receiverId].map((m) =>
-            m.senderId === currentUserId
-              ? {
-                  ...m,
-                  read: true,
-                  seen: true,
-                }
-              : m,
+            m.senderId === currentUserId ? { ...m, seen: true, read: true } : m,
           ),
         };
+      });
+    });
+
+    socket.on("messageDeleted", ({ messageId }) => {
+      setMessages((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((userId) => {
+          updated[userId] = updated[userId].map((m) =>
+            m.id === messageId ? { ...m, deleted: true, text: "" } : m,
+          );
+        });
+        return updated;
       });
     });
 
@@ -494,13 +777,57 @@ const ChatPage = () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [fetchChatList, markConversationRead, selectedChat?.id, currentUserId]);
+  }, [currentUserId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        pickerRef.current &&
+        !pickerRef.current.contains(event.target) &&
+        emojiBtnRef.current &&
+        !emojiBtnRef.current.contains(event.target)
+      ) {
+        setShowEmoji(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [selectedChat, messages]);
 
   // =========================================================================
   // 5. When a chat is selected
   // =========================================================================
   const handleSelectChat = (chat) => {
-    console.log("SELECTED CHAT:", chat);
+    setChats((prev) => {
+      const exists = prev.some((c) => c.id === chat.id);
+
+      if (exists) {
+        return prev.map((c) =>
+          c.id === chat.id
+            ? {
+                ...c,
+                online: chat.online ?? c.online,
+                lastSeen: chat.lastSeen ?? c.lastSeen,
+              }
+            : c,
+        );
+      }
+
+      return [
+        { ...chat, unread: 0, lastMessage: chat.lastMessage || null },
+        ...prev,
+      ];
+    });
 
     setSelectedChat(chat);
 
@@ -508,9 +835,7 @@ const ChatPage = () => {
       fetchConversation(chat.id);
     }
 
-    if (chat.unread > 0) {
-      markConversationRead(chat.id);
-    }
+    markConversationRead(chat.id);
   };
 
   // =========================================================================
@@ -518,24 +843,16 @@ const ChatPage = () => {
   // =========================================================================
   const handleSendMessage = () => {
     const text = messageInput.trim();
-
-    if (!text) return;
-    if (!selectedChat) return;
-    if (!currentUserId) return;
+    if (!text || !selectedChat || !currentUserId) return;
     if (!socketRef.current?.connected) {
       console.error("Socket not connected");
       return;
     }
 
-    socketRef.current.emit("sendMessage", {
-      senderId: currentUserId,
-      receiverId: selectedChat.id,
-      text,
-      type: "text",
-    });
+    const tempId = Date.now().toString();
 
     const tempMessage = {
-      id: Date.now().toString(),
+      id: tempId,
       text,
       type: "text",
       senderId: currentUserId,
@@ -551,43 +868,119 @@ const ChatPage = () => {
       [selectedChat.id]: [...(prev[selectedChat.id] || []), tempMessage],
     }));
 
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === selectedChat.id
-          ? {
-              ...chat,
-              lastMessage: tempMessage,
-            }
-          : chat,
-      ),
-    );
+    setChats((prev) => {
+      let updatedChat = null;
+      const otherChats = prev
+        .map((chat) => {
+          if (chat.id === selectedChat.id) {
+            updatedChat = { ...chat, lastMessage: tempMessage };
+            return null;
+          }
+          return chat;
+        })
+        .filter(Boolean);
+
+      if (!updatedChat) {
+        updatedChat = { ...selectedChat, lastMessage: tempMessage, unread: 0 };
+      }
+      return [updatedChat, ...otherChats];
+    });
 
     setMessageInput("");
+
+    socketRef.current.emit("sendMessage", {
+      senderId: currentUserId,
+      receiverId: selectedChat.id,
+      text,
+      type: "text",
+      senderLanguage: currentUser?.language || "en",
+      receiverLanguage: selectedChat?.language || "en",
+    });
   };
+
   const handleInputKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
+
+  const handleDeleteMessage = async (messageId, forEveryone) => {
+    if (!selectedChat) return;
+
+    try {
+      await api.delete(`/messages/${messageId}`);
+
+      setMessages((prev) => {
+        const updatedConversation = (prev[selectedChat.id] || []).filter(
+          (m) => m.id !== messageId,
+        );
+
+        setChats((chats) =>
+          chats.map((chat) =>
+            chat.id === selectedChat.id
+              ? {
+                  ...chat,
+                  lastMessage:
+                    updatedConversation.length > 0
+                      ? updatedConversation[updatedConversation.length - 1]
+                      : null,
+                }
+              : chat,
+          ),
+        );
+
+        return {
+          ...prev,
+          [selectedChat.id]: updatedConversation,
+        };
+      });
+    } catch (err) {
+      console.error(
+        "Failed to delete message:",
+        err.response?.data || err.message,
+      );
+    } finally {
+      setActiveMenuMessageId(null);
+    }
+  };
+
   // =========================================================================
   // Derived list for the sidebar
   // =========================================================================
-  const filteredChats = chats.filter((chat) => {
-    console.log(chat.name, chat.photo);
-    const matchesSearch = (chat.name || "")
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const matchesUnread = showUnread ? chat.unread > 0 : true;
-    return matchesSearch && matchesUnread;
-  });
+  const filteredChats = (Array.isArray(chats) ? chats : [])
+    .filter((chat) => {
+      if (!chat) return false;
+
+      const matchesSearch = (chat.name ?? "")
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+      const matchesUnread = !showUnread || (chat.unread ?? 0) > 0;
+
+      return matchesSearch && matchesUnread;
+    })
+    .sort((a, b) => {
+      const aTime = Date.parse(a?.lastMessage?.createdAt || 0);
+      const bTime = Date.parse(b?.lastMessage?.createdAt || 0);
+
+      return bTime - aTime;
+    });
+
+  const chatIds = new Set(chats.map((c) => c.id));
+  const matchingContactsOnly =
+    search.trim().length === 0
+      ? []
+      : allContacts.filter(
+          (c) =>
+            !chatIds.has(c.id) &&
+            c.name.toLowerCase().includes(search.toLowerCase()),
+        );
 
   const conversation = selectedChat ? messages[selectedChat.id] || [] : [];
 
   return (
     <>
-      {/* <Header /> */}
-
       <div className="chat-page">
         <div className="main-container">
           {/* ================= Sidebar ================= */}
@@ -657,64 +1050,131 @@ const ChatPage = () => {
                     ) : chatsError ? (
                       <p style={{ padding: 20 }}>{chatsError}</p>
                     ) : (
-                      filteredChats.map((chat) => {
-                        const highlight = shouldHighlightUnread(chat);
+                      <>
+                        {filteredChats.map((chat) => {
+                          const highlight = shouldHighlightUnread(chat);
 
-                        return (
-                          <div
-                            key={chat.id}
-                            className={`chat-card ${
-                              selectedChat?.id === chat.id ? "selected" : ""
-                            }`}
-                            onClick={() => handleSelectChat(chat)}
-                          >
+                          return (
                             <div
-                              className="chat-avatar"
-                              style={{
-                                backgroundColor: getAvatarColor(chat.name),
-                              }}
+                              key={chat.id}
+                              className={`chat-card ${
+                                selectedChat?.id === chat.id ? "selected" : ""
+                              }`}
+                              onClick={() => handleSelectChat(chat)}
                             >
-                              {chat.photo ? (
-                                <img
-                                  src={chat.photo}
-                                  alt={chat.name}
-                                  className="avatar-image"
-                                />
-                              ) : (
-                                <span>
-                                  <span>{getInitials(chat.name)}</span>
-                                </span>
-                              )}
+                              <div
+                                className="chat-avatar"
+                                style={{
+                                  backgroundColor: getAvatarColor(chat.name),
+                                }}
+                              >
+                                {chat.photo ? (
+                                  <img
+                                    src={chat.photo}
+                                    alt={chat.name}
+                                    className="avatar-image"
+                                  />
+                                ) : (
+                                  <span>
+                                    <span>{getInitials(chat.name)}</span>
+                                  </span>
+                                )}
 
-                              {chat.online && (
-                                <span className="online-dot"></span>
-                              )}
-                            </div>
-
-                            <div className="chat-info">
-                              <div className="top">
-                                <h4>{chat.name}</h4>
-
-                                <span>
-                                  {formatMessageTime(
-                                    chat.lastMessage?.createdAt,
-                                  )}
-                                </span>
-                              </div>
-
-                              <div className="bottom">
-                                <p className={highlight ? "unread-text" : ""}>
-                                  {getPreviewText(chat)}
-                                </p>
-
-                                {chat.unread > 0 && (
-                                  <span className="badge">{chat.unread}</span>
+                                {chat.online && (
+                                  <span className="online-dot"></span>
                                 )}
                               </div>
+
+                              <div className="chat-info">
+                                <div className="top">
+                                  <h4>{chat.name}</h4>
+
+                                  <span>
+                                    {formatMessageTime(
+                                      chat.lastMessage?.createdAt,
+                                    )}
+                                  </span>
+                                </div>
+
+                                <div className="bottom">
+                                  <p className={highlight ? "unread-text" : ""}>
+                                    {isAudioMessage(chat) && (
+                                      <FiMic className="msg-type-icon" />
+                                    )}
+                                    {isImageMessage(chat) && (
+                                      <FiImage className="msg-type-icon" />
+                                    )}
+                                    {getPreviewText(chat)}
+                                  </p>
+
+                                  {chat.unread > 0 && (
+                                    <span className="badge">{chat.unread}</span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })
+                          );
+                        })}
+
+                        {matchingContactsOnly.length > 0 && (
+                          <>
+                            <div
+                              style={{
+                                padding: "12px 20px 6px",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: "#7a7a7a",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Contacts
+                            </div>
+
+                            {matchingContactsOnly.map((contact) => (
+                              <div
+                                key={contact.id}
+                                className="chat-card"
+                                onClick={() => {
+                                  setSearch("");
+                                  handleSelectChat({
+                                    ...contact,
+                                    unread: 0,
+                                    lastMessage: null,
+                                  });
+                                }}
+                              >
+                                <div
+                                  className="chat-avatar"
+                                  style={{
+                                    backgroundColor: getAvatarColor(
+                                      contact.name,
+                                    ),
+                                  }}
+                                >
+                                  {contact.photo ? (
+                                    <img
+                                      src={contact.photo}
+                                      alt={contact.name}
+                                      className="avatar-image"
+                                    />
+                                  ) : (
+                                    <span>{getInitials(contact.name)}</span>
+                                  )}
+                                </div>
+
+                                <div className="chat-info">
+                                  <div className="top">
+                                    <h4>{contact.name}</h4>
+                                  </div>
+                                  <div className="bottom">
+                                    <p>Tap to start chatting</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </>
                     )}
                   </div>
                 </aside>
@@ -735,10 +1195,11 @@ const ChatPage = () => {
           <section className="chat-area">
             {!selectedChat ? (
               <div className="empty-chat">
-              <h2>No Conversation Selected</h2>
-              <p>Select a conversation from the left sidebar to start chatting.</p>
-            </div>
-              
+                <h2>No Conversation Selected</h2>
+                <p>
+                  Select a conversation from the left sidebar to start chatting.
+                </p>
+              </div>
             ) : (
               <>
                 {/* ================= Chat Header ================= */}
@@ -766,18 +1227,60 @@ const ChatPage = () => {
                     <div>
                       <h3>{selectedChat.name}</h3>
 
-                      <span>{selectedChat.online ? "Online" : "Offline"}</span>
+                      <span className="online-status">
+                        {selectedChat.online
+                          ? "Online"
+                          : selectedChat.lastSeen
+                            ? `Last seen ${formatLastSeen(selectedChat.lastSeen)}`
+                            : "Offline"}
+                      </span>
                     </div>
                   </div>
 
                   <div className="header-actions">
-                    <FiPhone />
+                    <FiVideo
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        navigate(
+                          `/video-call?user=${currentUserId}&target=${selectedChat.id}`,
+                          {
+                            state: {
+                              remoteUser: {
+                                id: selectedChat.id,
+                                name: selectedChat.name,
+                                status: selectedChat.online
+                                  ? "Online"
+                                  : "Offline",
+                                profile:
+                                  selectedChat.photo ||
+                                  "https://i.pravatar.cc/200?img=12",
+                              },
+                            },
+                          },
+                        )
+                      }
+                    />
+
+                    <FiPhone
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        navigate("/voice-call", {
+                          state: {
+                            targetUser: {
+                              id: selectedChat.id,
+                              name: selectedChat.name,
+                              photo: selectedChat.photo,
+                            },
+                          },
+                        })
+                      }
+                    />
 
                     <FiMoreVertical />
                   </div>
                 </div>
 
-                {/* ================= Chat Content (messages or empty state) ================= */}
+                {/* ================= Chat Content ================= */}
 
                 <div className="chat-content">
                   {isLoadingConversation ? (
@@ -807,17 +1310,102 @@ const ChatPage = () => {
                     </div>
                   ) : (
                     <div className="chat-body">
-                      {conversation.map((msg) => (
-                        <div
-                          key={msg.id}
-                          className={`message ${
-                            msg.senderId === currentUserId ? "sent" : "received"
-                          }`}
-                        >
-                          <p>{msg.text}</p>
-                          <span>{formatBubbleTime(msg.createdAt)}</span>
-                        </div>
-                      ))}
+                      {conversation.map((msg) => {
+                        const isMine = msg.senderId === currentUserId;
+
+                        const isHiddenForMe =
+                          msg.deletedFor?.includes(currentUserId);
+
+                        if (isHiddenForMe) return null;
+
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`message ${
+                              isMine ? "sent" : "received"
+                            } ${msg.type === "image" ? "image-message" : ""}`}
+                          >
+                            <div className="message-bubble">
+                              {isMine && !msg.deleted && (
+                                <div className="message-menu-wrapper">
+                                  <button
+                                    className="message-menu-btn"
+                                    onClick={() =>
+                                      setActiveMenuMessageId(
+                                        activeMenuMessageId === msg.id
+                                          ? null
+                                          : msg.id,
+                                      )
+                                    }
+                                  >
+                                    <FiChevronDown size={18} />
+                                  </button>
+
+                                  {activeMenuMessageId === msg.id && (
+                                    <div className="message-menu-dropdown">
+                                      <div
+                                        className="message-menu-item"
+                                        onClick={() =>
+                                          handleDeleteMessage(msg.id, false)
+                                        }
+                                      >
+                                        Delete for me
+                                      </div>
+
+                                      <div
+                                        className="message-menu-item danger"
+                                        onClick={() =>
+                                          handleDeleteMessage(msg.id, true)
+                                        }
+                                      >
+                                        Delete for everyone
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {msg.deleted ? (
+                                <p className="deleted-text">
+                                  <em>This message was deleted</em>
+                                </p>
+                              ) : msg.type === "image" ? (
+                                <img
+                                  src={msg.mediaUrl}
+                                  alt=""
+                                  className="chat-image"
+                                />
+                              ) : msg.type === "audio" ? (
+                                <audio controls src={msg.mediaUrl} />
+                              ) : (
+                                <>
+                                  <p>{msg.text}</p>
+
+                                  <div className="message-meta">
+                                    <span className="message-time">
+                                      {formatBubbleTime(msg.createdAt)}
+                                    </span>
+
+                                    {isMine && (
+                                      <span
+                                        className={`message-status ${
+                                          msg.seen
+                                            ? "seen"
+                                            : msg.delivered
+                                              ? "delivered"
+                                              : "sent"
+                                        }`}
+                                      >
+                                        {msg.delivered || msg.seen ? "✓✓" : "✓"}
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -826,11 +1414,33 @@ const ChatPage = () => {
 
                 <div className="chat-input">
                   <div className="input-wrapper">
-                    <div className="input-icon">
-                      <FiSmile />
+                    <div className="emoji-box">
+                      <button
+                        ref={emojiBtnRef}
+                        className="input-icon"
+                        type="button"
+                        onClick={() => setShowEmoji((prev) => !prev)}
+                      >
+                        <FiSmile
+                          color={showEmoji ? "#25D366" : "#6b7280"}
+                          size={20}
+                        />
+                      </button>
+
+                      {showEmoji && (
+                        <div className="emoji-picker" ref={pickerRef}>
+                          <EmojiPicker
+                            onEmojiClick={handleEmoji}
+                            width={320}
+                            height={420}
+                            lazyLoadEmojis
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <input
+                      ref={inputRef}
                       type="text"
                       placeholder="Message"
                       value={messageInput}
@@ -839,13 +1449,37 @@ const ChatPage = () => {
                       disabled={isSending}
                     />
 
-                    <div className="attach-icon">
-                      <FiPaperclip />
-                    </div>
+                    <input
+                      type="file"
+                      id="fileInput"
+                      hidden
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                    />
+
+                    <button
+                      className="attach-icon"
+                      type="button"
+                      onClick={() =>
+                        document.getElementById("fileInput").click()
+                      }
+                    >
+                      <FiPaperclip size={20} />
+                    </button>
                   </div>
 
-                  <button className="mic-btn" onClick={handleSendMessage}>
-                    <FiMic />
+                  <button
+                    className="mic-btn"
+                    onClick={
+                      messageInput.trim()
+                        ? handleSendMessage
+                        : isRecording
+                          ? stopRecording
+                          : startRecording
+                    }
+                    disabled={isSending}
+                  >
+                    {messageInput.trim() ? <FiSend /> : <FiMic />}
                   </button>
                 </div>
               </>
