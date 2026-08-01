@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import axios from "axios";
-import { io } from "socket.io-client";
+import api from "../services/api";
+import socket from "../services/socket";
 import ContactsSidebar from "../components/chats/ContactsSidebar";
 import ChatListSidebar from "../components/chats/ChatListSidebar";
+import { useCall } from "../context/CallContext";
 import {
   FiMessageSquare,
   FiPhone,
@@ -27,22 +28,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 // ---------------------------------------------------------------------------
 // CONFIG — adjust these three to match your existing backend setup
 // ---------------------------------------------------------------------------
-const SOCKET_URL = "http://localhost:5000";
-const API_BASE_URL = "http://localhost:5000/api";
-console.log("Socket URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "token";
 const AUTH_USER_KEY = "user";
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
 
 // ---------------------------------------------------------------------------
 // ENDPOINTS
@@ -210,7 +197,7 @@ const isImageMessage = (chat) => chat.lastMessage?.type === "image";
 const ChatPage = () => {
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?._id || currentUser?.id;
-
+  const { startCall } = useCall();
   const [selectedChat, setSelectedChat] = useState(null);
   const [search, setSearch] = useState("");
   const [showUnread, setShowUnread] = useState(false);
@@ -634,16 +621,15 @@ const ChatPage = () => {
   useEffect(() => {
     fetchChatList();
 
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-    const socket = io(SOCKET_URL, {
-      auth: { token },
-    });
-
     socketRef.current = socket;
+
+    if (!socket.connected) {
+      socket.connect();
+    }
 
     socket.on("connect", () => {
       socket.emit("addUser", currentUserId);
+      socket.emit("register-user", currentUserId);
     });
 
     socket.on("getMessage", (data) => {
@@ -772,9 +758,13 @@ const ChatPage = () => {
         return updated;
       });
     });
-
     return () => {
-      socket.disconnect();
+      socket.off("connect");
+      socket.off("getMessage");
+      socket.off("getUsers");
+      socket.off("messageStatus");
+      socket.off("messagesSeen");
+      socket.off("messageDeleted");
       socketRef.current = null;
     };
   }, [currentUserId]);
@@ -1264,14 +1254,10 @@ const ChatPage = () => {
                     <FiPhone
                       style={{ cursor: "pointer" }}
                       onClick={() =>
-                        navigate("/voice-call", {
-                          state: {
-                            targetUser: {
-                              id: selectedChat.id,
-                              name: selectedChat.name,
-                              photo: selectedChat.photo,
-                            },
-                          },
+                        startCall({
+                          id: selectedChat.id,
+                          name: selectedChat.name,
+                          photo: selectedChat.photo,
                         })
                       }
                     />

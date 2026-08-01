@@ -1,312 +1,324 @@
-import { useEffect, useState, useRef } from "react";
-import { socket } from "../services/socket";
-import VoiceCall from "./VoiceCall";
-import "../styles/CallScreen.css";
-import avatar from "../assets/avatar.jpg";
 
-import { Phone, MessageSquare, Mic, MicOff, Volume2 } from "lucide-react";
+  import { useEffect, useRef, useState } from "react";
+  import VoiceCall from "./VoiceCall";
+  import "../styles/CallScreen.css";
+  import avatar from "../assets/avatar.jpg";
 
-function CallScreen({ user, targetUser }) {
-  const [status, setStatus] = useState("idle");
+  import { Phone, MessageSquare, Mic, MicOff, Volume2 } from "lucide-react";
 
-  // Incoming caller info
-  const [caller, setCaller] = useState("");
-  const [callerName, setCallerName] = useState("");
+  function CallScreen({
+    user,
+    status,
+    otherUser,
+    isCaller,
+    acceptCall,
+    declineCall,
+    endCall,
+    resetCall,
+  }) {
+    const [micMuted, setMicMuted] = useState(false);
 
-  const [isCaller, setIsCaller] = useState(false);
-  const [micMuted, setMicMuted] = useState(false);
+    // 📞 Outgoing ringtone
+    const ringtone = useRef(new Audio("/sounds/ringing.mp3"));
 
-  // 📞 Outgoing Ringing
-  const ringtone = useRef(new Audio("/sounds/ringing.mp3"));
+    // 📲 Incoming ringtone
+    const incomingRingtone = useRef(new Audio("/sounds/ringtone.mp3"));
 
-  // 📲 Incoming Ringtone
-  const incomingRingtone = useRef(new Audio("/sounds/ringtone.mp3"));
+    // =====================================================
+    // STOP ALL RINGTONES
+    // =====================================================
 
-  // ==========================
-  // Socket Events
-  // ==========================
-  useEffect(() => {
-    socket.on("incoming-call", (data) => {
-      console.log("Incoming Call:", data);
-
-      setCaller(data.from);
-      setCallerName(data.fromName || data.from);
-      setIsCaller(false);
-      setStatus("incoming");
-    });
-
-    socket.on("call-accepted", () => {
-      console.log("Call Accepted");
-
+    const stopRingtones = () => {
       ringtone.current.pause();
       ringtone.current.currentTime = 0;
 
       incomingRingtone.current.pause();
       incomingRingtone.current.currentTime = 0;
-
-      setIsCaller(true);
-      setStatus("connected");
-    });
-
-    socket.on("call-declined", () => {
-      ringtone.current.pause();
-      ringtone.current.currentTime = 0;
-
-      incomingRingtone.current.pause();
-      incomingRingtone.current.currentTime = 0;
-
-      setStatus("ended");
-    });
-
-    socket.on("call-ended", () => {
-      ringtone.current.pause();
-      ringtone.current.currentTime = 0;
-
-      incomingRingtone.current.pause();
-      incomingRingtone.current.currentTime = 0;
-
-      setIsCaller(false);
-      setStatus("ended");
-    });
-
-    return () => {
-      ringtone.current.pause();
-      ringtone.current.currentTime = 0;
-
-      incomingRingtone.current.pause();
-      incomingRingtone.current.currentTime = 0;
-
-      socket.off("incoming-call");
-      socket.off("call-accepted");
-      socket.off("call-declined");
-      socket.off("call-ended");
     };
-  }, []);
 
-  // 📞 Outgoing Ring
-  useEffect(() => {
-    if (status === "calling") {
-      ringtone.current.loop = true;
-      ringtone.current.play().catch(() => {});
-    } else {
-      ringtone.current.pause();
-      ringtone.current.currentTime = 0;
+    // =====================================================
+    // OUTGOING RING
+    // =====================================================
+
+    useEffect(() => {
+      if (status === "calling") {
+        ringtone.current.loop = true;
+
+        ringtone.current.play().catch((err) => {
+          console.log("Outgoing ringtone error:", err);
+        });
+      } else {
+        ringtone.current.pause();
+        ringtone.current.currentTime = 0;
+      }
+
+      return () => {
+        ringtone.current.pause();
+        ringtone.current.currentTime = 0;
+      };
+    }, [status]);
+
+    // =====================================================
+    // INCOMING RING
+    // =====================================================
+
+    useEffect(() => {
+      if (status === "incoming") {
+        incomingRingtone.current.loop = true;
+
+        incomingRingtone.current.play().catch((err) => {
+          console.log("Incoming ringtone error:", err);
+        });
+      } else {
+        incomingRingtone.current.pause();
+        incomingRingtone.current.currentTime = 0;
+      }
+
+      return () => {
+        incomingRingtone.current.pause();
+        incomingRingtone.current.currentTime = 0;
+      };
+    }, [status]);
+
+    // =====================================================
+    // NO USER
+    // =====================================================
+
+    if (!otherUser) {
+      return null;
     }
-  }, [status]);
 
-  // 📲 Incoming Ring
-  useEffect(() => {
-    if (status === "incoming") {
-      incomingRingtone.current.loop = true;
-      incomingRingtone.current.play().catch((err) => {
-        console.log("Incoming ringtone error:", err);
-      });
-    } else {
-      incomingRingtone.current.pause();
-      incomingRingtone.current.currentTime = 0;
-    }
-  }, [status]);
+    // =====================================================
+    // CURRENT CONTACT
+    // =====================================================
 
-  // ==========================
-  // Call the selected contact
-  // ==========================
-  const callUser = () => {
-    socket.emit("call-user", {
-      from: user,
-      to: targetUser.id,
-    });
+    const activeContactId = otherUser.id;
 
-    console.log("Calling:", targetUser.id);
+    const activeContactName =
+      otherUser.name || otherUser.id;
 
-    setIsCaller(true);
-    setStatus("calling");
-  };
+    // =====================================================
+    // RENDER
+    // =====================================================
 
-  // ✅ Accept Incoming Call
-  const acceptCall = () => {
-    incomingRingtone.current.pause();
-    incomingRingtone.current.currentTime = 0;
+    return (
+      <div className="call-container">
 
-    ringtone.current.pause();
-    ringtone.current.currentTime = 0;
+        {/* =================================================
+            CALLING
+        ================================================= */}
 
-    socket.emit("accept-call", {
-      from: user,
-      to: caller,
-    });
+        {status === "calling" && (
+          <div
+            className="call-ui"
+            style={{
+              backgroundImage: `url(${otherUser.photo || avatar})`,
+            }}
+          >
+            <div className="call-overlay">
 
-    setIsCaller(false);
-    setStatus("connected");
-  };
+              <h2 className="calling-user-name">
+                {activeContactName}
+              </h2>
 
-  // ❌ Decline / End Call
-  const declineCall = () => {
-    incomingRingtone.current.pause();
-    incomingRingtone.current.currentTime = 0;
+              <p className="calling-text">
+                Calling...
+              </p>
 
-    ringtone.current.pause();
-    ringtone.current.currentTime = 0;
+              <img
+                src={otherUser.photo || avatar}
+                alt="Avatar"
+                className="caller-avatar"
+              />
 
-    socket.emit("decline-call", {
-      from: user,
-      to: caller,
-    });
+              <div className="calling-actions">
 
-    setStatus("ended");
-  };
+                {/* MUTE */}
+                <button
+                  className="control-btn"
+                  onClick={() => setMicMuted((prev) => !prev)}
+                >
+                  {micMuted ? (
+                    <MicOff size={24} color="white" />
+                  ) : (
+                    <Mic size={24} color="white" />
+                  )}
+                </button>
 
-  // ✅ Whoever we're actually talking to right now
-  const activeContactId = isCaller ? targetUser.id : caller;
-  const activeContactName = isCaller
-    ? targetUser.name || targetUser.id
-    : callerName || caller;
+                {/* END CALL */}
+                <button
+                  className="end-call-btn"
+                  onClick={() => {
+                    stopRingtones();
+                    endCall();
+                  }}
+                >
+                  <Phone size={28} color="white" />
+                </button>
 
-  return (
-    <div className="call-container">
-      {/* Idle */}
-      {status === "idle" && (
-        <div className="call-screen">
-          <button className="call-btn" onClick={callUser}>
-            <Phone size={22} strokeWidth={2.5} />
-            <span>Call {targetUser.name || targetUser.id}</span>
-          </button>
-        </div>
-      )}
+                {/* SPEAKER */}
+                <button className="control-btn">
+                  <Volume2 size={24} color="white" />
+                </button>
 
-      {/* Calling */}
-      {status === "calling" && (
-        <div
-          className="call-ui"
-          style={{
-            backgroundImage: `url(${targetUser.photo || avatar})`,
-          }}
-        >
-          <div className="call-overlay">
-            <h2 className="calling-user-name">
-              {targetUser.name || targetUser.id}
-            </h2>
+              </div>
+            </div>
+          </div>
+        )}
 
-            <p className="calling-text">Calling...</p>
+        {/* =================================================
+            INCOMING CALL
+        ================================================= */}
+
+        {status === "incoming" && (
+          <div
+            className="incoming-ui"
+            style={{
+              backgroundImage: `url(${otherUser.photo || avatar})`,
+              backgroundSize: "115%",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
+          >
+            <div className="incoming-overlay">
+
+              <h2 className="incoming-user-name">
+                {activeContactName}
+              </h2>
+
+              <img
+                src={otherUser.photo || avatar}
+                alt="Avatar"
+                className="incoming-user-avatar"
+              />
+
+              <div className="incoming-actions">
+
+                {/* DECLINE */}
+                <div className="action-item">
+
+                  <button
+                    className="incoming-decline-btn"
+                    onClick={() => {
+                      stopRingtones();
+                      declineCall();
+                    }}
+                  >
+                    <Phone
+                      size={30}
+                      color="white"
+                    />
+                  </button>
+
+                  <span>
+                    Decline
+                  </span>
+
+                </div>
+
+                {/* ACCEPT */}
+                <div className="action-item">
+
+                  <button
+                    className="incoming-accept-btn"
+                    onClick={() => {
+                      stopRingtones();
+                      acceptCall();
+                    }}
+                  >
+                    <Phone
+                      size={30}
+                      color="white"
+                    />
+                  </button>
+
+                  <span>
+                    Swipe up to accept
+                  </span>
+
+                </div>
+
+                {/* MESSAGE */}
+                <div className="action-item">
+
+                  <button className="incoming-message-btn">
+                    <MessageSquare
+                      size={30}
+                      color="white"
+                    />
+                  </button>
+
+                  <span>
+                    Message
+                  </span>
+
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================
+            CONNECTED
+        ================================================= */}
+
+        {status === "connected" && (
+          <div className="voicecall-wrapper">
+
+            <VoiceCall
+              user={user}
+              receiver={activeContactId}
+              receiverName={activeContactName}
+              isCaller={isCaller}
+            onEnd={() => {
+  stopRingtones();
+  resetCall();
+}}
+            />
+
+          </div>
+        )}
+
+        {/* =================================================
+            ENDED
+        ================================================= */}
+
+        {status === "ended" && (
+          <div className="call-screen">
 
             <img
-              src={targetUser.photo || avatar}
+              src={otherUser.photo || avatar}
               alt="Avatar"
               className="caller-avatar"
             />
 
-            <div className="calling-actions">
-              <button
-                className="control-btn"
-                onClick={() => setMicMuted(!micMuted)}
-              >
-                {micMuted ? (
-                  <MicOff size={24} color="white" />
-                ) : (
-                  <Mic size={24} color="white" />
-                )}
-              </button>
+            <h2>
+              Call Ended
+            </h2>
 
-              <button className="end-call-btn" onClick={declineCall}>
-                <Phone size={28} color="white" />
-              </button>
+            <button
+              className="call-btn"
+              onClick={() => {
+                stopRingtones();
+                resetCall();
+              }}
+            >
+              <Phone
+                size={22}
+                strokeWidth={2.5}
+              />
 
-              <button className="control-btn">
-                <Volume2 size={24} color="white" />
-              </button>
-            </div>
+              <span>
+                Call Again
+              </span>
+            </button>
+
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Incoming */}
-      {status === "incoming" && (
-        <div
-          className="incoming-ui"
-          style={{
-            backgroundImage: `url(${avatar})`,
-            backgroundSize: "115%",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
-        >
-          <div className="incoming-overlay">
-            <h2 className="incoming-user-name">{callerName || caller}</h2>
+      </div>
+    );
+  }
 
-            <img src={avatar} alt="Avatar" className="incoming-user-avatar" />
-
-            <div className="incoming-actions">
-              <div className="action-item">
-                <button className="incoming-decline-btn" onClick={declineCall}>
-                  <Phone size={30} color="white" />
-                </button>
-                <span>Decline</span>
-              </div>
-
-              <div className="action-item">
-                <button className="incoming-accept-btn" onClick={acceptCall}>
-                  <Phone size={30} color="white" />
-                </button>
-                <span>Swipe up to accept</span>
-              </div>
-
-              <div className="action-item">
-                <button className="incoming-message-btn">
-                  <MessageSquare size={30} color="white" />
-                </button>
-                <span>Message</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Connected */}
-      {status === "connected" && (
-        <div className="voicecall-wrapper">
-          <VoiceCall
-            user={user}
-            receiver={activeContactId}
-            receiverName={activeContactName}
-            isCaller={isCaller}
-            onEnd={() => {
-              ringtone.current.pause();
-              ringtone.current.currentTime = 0;
-
-              incomingRingtone.current.pause();
-              incomingRingtone.current.currentTime = 0;
-
-              setStatus("ended");
-            }}
-          />
-        </div>
-      )}
-
-      {/* Ended */}
-      {status === "ended" && (
-        <div className="call-screen">
-          <img src={avatar} alt="Avatar" className="caller-avatar" />
-
-          <h2>Call Ended</h2>
-
-          <button
-            className="call-btn"
-            onClick={() => {
-              ringtone.current.pause();
-              ringtone.current.currentTime = 0;
-
-              incomingRingtone.current.pause();
-              incomingRingtone.current.currentTime = 0;
-
-              setStatus("idle");
-            }}
-          >
-            <Phone size={22} strokeWidth={2.5} />
-            <span>Call Again</span>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default CallScreen;
+  export default CallScreen;

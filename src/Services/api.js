@@ -1,7 +1,10 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_UNI_LOKCHAT_API_URL ,
+  baseURL: import.meta.env.VITE_UNI_LOKCHAT_API_URL,
+  headers: {
+    "ngrok-skip-browser-warning": "true",
+  },
 });
 
 api.interceptors.request.use((config) => {
@@ -28,6 +31,7 @@ export const signupUser = async (userData) => {
     );
   }
 };
+
 // Login
 export const loginUser = async (loginData) => {
   try {
@@ -42,6 +46,7 @@ export const loginUser = async (loginData) => {
     );
   }
 };
+
 // Logout
 export const logoutUser = async (email) => {
   try {

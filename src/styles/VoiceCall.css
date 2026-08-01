@@ -128,7 +128,7 @@
     margin-top:20px;
 }
 
-.avatar{
+.voice-avatar{
     width:170px;
     height:170px;
     border-radius:50%;
@@ -165,7 +165,7 @@
     margin-bottom:45px;
 }
 
-.icon-btn{
+.voice-icon-btn{
     width:70px;
     height:70px;
     border-radius:50%;
@@ -180,12 +180,12 @@
     backdrop-filter:blur(10px);
 }
 
-.icon-btn svg{
+.voice-icon-btn svg{
     width:30px;
     height:30px;
 }
 
-.icon-btn:hover{
+.voice-icon-btn:hover{
     transform:scale(1.08);
     background:rgba(255,255,255,.28);
 }
@@ -251,7 +251,7 @@
 
 @media(max-width:600px){
 
-    .avatar{
+    .voice-avatar{
         width:140px;
         height:140px;
     }
@@ -264,7 +264,7 @@
         gap:25px;
     }
 
-    .icon-btn{
+    .voice-icon-btn{
         width:62px;
         height:62px;
     }

@@ -14,16 +14,25 @@ import {
   muteAudio,
 } from "../services/webrtc";
 
-function VoiceCall({ user, receiver, onEnd, isCaller }) {
+function VoiceCall({
+  user,
+  receiver,
+  receiverName,
+  receiverPhoto,
+  onEnd,
+  isCaller,
+}) {
   const audioRef = useRef(null);
+  const peerRef = useRef(null);
 
   const [time, setTime] = useState(0);
   const [muted, setMuted] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(true);
 
-  // ==========================
-  // Timer
-  // ==========================
+  // =====================================================
+  // TIMER
+  // =====================================================
+
   useEffect(() => {
     const timer = setInterval(() => {
       setTime((prev) => prev + 1);
@@ -32,18 +41,10 @@ function VoiceCall({ user, receiver, onEnd, isCaller }) {
     return () => clearInterval(timer);
   }, []);
 
-  // ==========================
-  // Caller Starts Call
-  // ==========================
-  useEffect(() => {
-    if (isCaller) {
-      startVoiceCall();
-    }
-  }, [isCaller]);
+  // =====================================================
+  // CREATE PEER
+  // =====================================================
 
-  // ==========================
-  // WebRTC Events
-  // ==========================
   useEffect(() => {
     let peer = getPeer();
 
@@ -51,105 +52,172 @@ function VoiceCall({ user, receiver, onEnd, isCaller }) {
       peer = createPeer();
     }
 
-    // Remote Audio
+    peerRef.current = peer;
+
+    // ===================================================
+    // REMOTE AUDIO
+    // ===================================================
+
     peer.ontrack = (event) => {
-      console.log("🎵 Remote Audio Received", event.streams);
+      console.log("🎵 Remote audio received");
 
-      if (!audioRef.current) return;
+      const remoteStream = event.streams[0];
 
-      audioRef.current.srcObject = event.streams[0];
+      if (!remoteStream || !audioRef.current) {
+        return;
+      }
 
-      audioRef.current.onloadedmetadata = async () => {
-        try {
-          await audioRef.current.play();
-          console.log("✅ Audio Playing");
-        } catch (err) {
-          console.log("Play Error:", err);
-        }
-      };
-    };
+      audioRef.current.srcObject = remoteStream;
 
-    // ICE Candidate Send
-    peer.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("ice-candidate", {
-          from: user,
-          to: receiver,
-          candidate: event.candidate,
+      audioRef.current
+        .play()
+        .then(() => {
+          console.log("✅ Remote audio playing");
+        })
+        .catch((err) => {
+          console.log("Audio play error:", err);
         });
+    };
+
+    // ===================================================
+    // ICE CANDIDATE
+    // ===================================================
+
+    peer.onicecandidate = (event) => {
+      if (!event.candidate) return;
+
+      console.log("📤 Sending ICE candidate");
+
+      socket.emit("ice-candidate", {
+        from: user,
+        to: receiver,
+        candidate: event.candidate,
+      });
+    };
+
+    // ===================================================
+    // RECEIVE OFFER
+    // ===================================================
+
+    const handleOffer = async (data) => {
+      try {
+        console.log("📩 Voice offer received from:", data.from);
+
+        const stream = await getLocalStream();
+
+        stream.getTracks().forEach((track) => {
+          const alreadyAdded = peer
+            .getSenders()
+            .some((sender) => sender.track === track);
+
+          if (!alreadyAdded) {
+            peer.addTrack(track, stream);
+          }
+        });
+
+        await peer.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+        const answer = await peer.createAnswer();
+
+        await peer.setLocalDescription(answer);
+
+        // IMPORTANT:
+        // Answer MUST be sent here
+        socket.emit("webrtc-answer", {
+          from: user,
+          to: data.from,
+          answer: peer.localDescription,
+        });
+
+        console.log("📤 Voice answer sent to:", data.from);
+      } catch (error) {
+        console.error("❌ Offer handling error:", error);
       }
     };
 
-    // ==========================
-    // Receive Offer
-    // ==========================
-    socket.on("webrtc-offer", async (data) => {
-      console.log("📩 Offer Received");
+    // ===================================================
+    // RECEIVE ANSWER
+    // ===================================================
 
-      const stream = await getLocalStream();
-
-      stream.getTracks().forEach((track) => {
-        const sender = peer.getSenders().find((s) => s.track === track);
-
-        if (!sender) {
-          peer.addTrack(track, stream);
-        }
-      });
-
-      await peer.setRemoteDescription(data.offer);
-
-      const answer = await peer.createAnswer();
-
-      await peer.setLocalDescription(answer);
-
-      socket.emit("webrtc-answer", {
-        from: user,
-        to: data.from,
-        answer,
-      });
-
-      console.log("✅ Answer Sent");
-    });
-    // ==========================
-    // Receive Answer
-    // ==========================
-    socket.on("webrtc-answer", async (data) => {
+    const handleAnswer = async (data) => {
       try {
-        console.log("✅ Answer Received");
+        console.log("📩 Voice answer received from:", data.from);
 
-        if (!peer.currentRemoteDescription) {
-          await peer.setRemoteDescription(data.answer);
-          console.log("✅ Remote Description Set");
+        if (
+          !peer.currentRemoteDescription ||
+          peer.currentRemoteDescription.type === ""
+        ) {
+          await peer.setRemoteDescription(
+            new RTCSessionDescription(data.answer),
+          );
+
+          console.log("✅ Remote answer applied");
         }
-      } catch (err) {
-        console.log("Answer Error:", err);
+      } catch (error) {
+        console.error("❌ Answer handling error:", error);
       }
-    });
+    };
 
-    // ==========================
-    // Receive ICE Candidate
-    // ==========================
-    socket.on("ice-candidate", async (data) => {
+    // ===================================================
+    // RECEIVE ICE
+    // ===================================================
+
+    const handleIceCandidate = async (data) => {
       try {
-        if (data.candidate) {
-          await peer.addIceCandidate(data.candidate);
-          console.log("✅ ICE Candidate Added");
-        }
-      } catch (err) {
-        console.log("ICE Error:", err);
+        if (!data.candidate) return;
+
+        await peer.addIceCandidate(new RTCIceCandidate(data.candidate));
+
+        console.log("✅ ICE candidate added");
+      } catch (error) {
+        console.error("❌ ICE candidate error:", error);
       }
-    });
+    };
+
+    // ===================================================
+    // CALL ENDED
+    // ===================================================
+
+    const handleCallEnded = () => {
+      console.log("📞 Other user ended the call");
+
+      closePeer();
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.srcObject = null;
+      }
+
+      if (onEnd) {
+        onEnd();
+      }
+    };
+
+    socket.on("webrtc-offer", handleOffer);
+    socket.on("webrtc-answer", handleAnswer);
+    socket.on("ice-candidate", handleIceCandidate);
+    socket.on("call-ended", handleCallEnded);
 
     return () => {
-      socket.off("webrtc-offer");
-      socket.off("webrtc-answer");
-      socket.off("ice-candidate");
+      socket.off("webrtc-offer", handleOffer);
+      socket.off("webrtc-answer", handleAnswer);
+      socket.off("ice-candidate", handleIceCandidate);
+      socket.off("call-ended", handleCallEnded);
     };
-  }, []);
+  }, [user, receiver, onEnd]);
 
-  // ==========================
-  // Start Voice Call (Caller)
-  // ==========================
+  // =====================================================
+  // CALLER STARTS CALL
+  // =====================================================
+
+  useEffect(() => {
+    if (!isCaller) return;
+
+    startVoiceCall();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCaller]);
+
   const startVoiceCall = async () => {
     try {
       let peer = getPeer();
@@ -158,13 +226,16 @@ function VoiceCall({ user, receiver, onEnd, isCaller }) {
         peer = createPeer();
       }
 
+      peerRef.current = peer;
+
       const stream = await getLocalStream();
 
-      // Duplicate Track Prevent
       stream.getTracks().forEach((track) => {
-        const sender = peer.getSenders().find((s) => s.track === track);
+        const alreadyAdded = peer
+          .getSenders()
+          .some((sender) => sender.track === track);
 
-        if (!sender) {
+        if (!alreadyAdded) {
           peer.addTrack(track, stream);
         }
       });
@@ -173,26 +244,30 @@ function VoiceCall({ user, receiver, onEnd, isCaller }) {
 
       await peer.setLocalDescription(offer);
 
-      console.log("Local Offer:", peer.localDescription);
-
       socket.emit("webrtc-offer", {
         from: user,
         to: receiver,
-        offer,
+        offer: peer.localDescription,
       });
 
-      console.log("📤 Offer Sent");
-    } catch (err) {
-      console.log("Start Call Error:", err);
+      console.log("📤 Voice offer sent to:", receiver);
+    } catch (error) {
+      console.error("❌ Start voice call error:", error);
     }
   };
-  // ==========================
-  // Mute / Unmute
-  // ==========================
+
+  // =====================================================
+  // MUTE
+  // =====================================================
+
   const handleMute = () => {
     muteAudio();
     setMuted((prev) => !prev);
   };
+
+  // =====================================================
+  // SPEAKER
+  // =====================================================
 
   const handleSpeaker = () => {
     const newState = !speakerOn;
@@ -203,14 +278,28 @@ function VoiceCall({ user, receiver, onEnd, isCaller }) {
       audioRef.current.muted = !newState;
     }
   };
-  // ==========================
-  // End Call
-  // ==========================
-  const endCall = () => {
+
+  // =====================================================
+  // END CALL
+  // =====================================================
+
+  const endCall = async () => {
+    console.log("📞 Ending voice call");
+
     socket.emit("end-call", {
       from: user,
       to: receiver,
     });
+
+    try {
+      const stream = await getLocalStream();
+
+      stream.getTracks().forEach((track) => {
+        track.stop();
+      });
+    } catch (error) {
+      console.log("Stream stop error:", error);
+    }
 
     closePeer();
 
@@ -224,23 +313,24 @@ function VoiceCall({ user, receiver, onEnd, isCaller }) {
     }
   };
 
-  // ==========================
-  // UI
-  // ==========================
   return (
     <div
       className="voice-call"
       style={{
-        backgroundImage: `url(${avatar})`,
+        backgroundImage: `url(${receiverPhoto || avatar})`,
       }}
     >
       <div className="overlay">
         <audio ref={audioRef} autoPlay playsInline />
 
         <div className="top-section">
-          <img src={avatar} className="avatar" alt="avatar" />
+        <img
+  src={receiverPhoto || avatar}
+  className="avatar"
+  alt="avatar"
+/>
 
-          <h2>{receiver}</h2>
+<h2>{receiverName || receiver}</h2>
 
           <p>Voice Call</p>
 

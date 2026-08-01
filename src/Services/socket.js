@@ -1,8 +1,11 @@
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:5000", {
-  transports: ["polling", "websocket"],
-  reconnection: true,
+const SOCKET_URL = "https://anteater-tattle-parted.ngrok-free.dev";
+
+const socket = io(SOCKET_URL, {
+  transports: ["websocket"], // use websocket instead of polling
+  withCredentials: true,
+  autoConnect: true,
 });
 
 socket.on("connect", () => {
@@ -10,7 +13,11 @@ socket.on("connect", () => {
 });
 
 socket.on("connect_error", (error) => {
-  console.log("❌ SOCKET CONNECTION ERROR:", error.message);
+  console.error("❌ SOCKET CONNECTION ERROR:", error);
+});
+
+socket.on("disconnect", (reason) => {
+  console.log("🔌 SOCKET DISCONNECTED:", reason);
 });
 
 export default socket;
