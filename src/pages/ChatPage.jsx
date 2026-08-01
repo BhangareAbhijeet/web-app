@@ -64,17 +64,17 @@ const getCurrentUser = () => {
   }
 };
 
-const avatarColors = [
-  "#E35D2B",
-  "#8B5CF6",
-  "#10B981",
-  "#F59E0B",
-  "#3B82F6",
-  "#EC4899",
-  "#14B8A6",
-  "#EF4444",
-  "#0EA5E9",
-  "#F97316",
+const avatarThemes = [
+  { bg: "rgba(242, 115, 92, 0.18)", text: "#F2735C" },
+  { bg: "rgba(139, 92, 246, 0.18)", text: "#B79CFF" },
+  { bg: "rgba(16, 185, 129, 0.18)", text: "#4ADE80" },
+  { bg: "rgba(245, 158, 11, 0.18)", text: "#FBBF24" },
+  { bg: "rgba(59, 130, 246, 0.18)", text: "#5AC8FA" },
+  { bg: "rgba(236, 72, 153, 0.18)", text: "#F472B6" },
+  { bg: "rgba(20, 184, 166, 0.18)", text: "#2DD4BF" },
+  { bg: "rgba(239, 68, 68, 0.18)", text: "#F87171" },
+  { bg: "rgba(14, 165, 233, 0.18)", text: "#38BDF8" },
+  { bg: "rgba(249, 115, 22, 0.18)", text: "#FB923C" },
 ];
 
 const getAvatarColor = (name) => {
@@ -82,7 +82,7 @@ const getAvatarColor = (name) => {
   for (let i = 0; i < (name || "").length; i++) {
     hash += name.charCodeAt(i);
   }
-  return avatarColors[hash % avatarColors.length];
+  return avatarThemes[hash % avatarThemes.length];
 };
 
 const getInitials = (name = "") => {
@@ -969,7 +969,28 @@ const ChatPage = () => {
 
   const conversation = selectedChat ? messages[selectedChat.id] || [] : [];
 
-  
+  // ✅ Date label formatter for message separators
+  const getMessageDateLabel = (date) => {
+    const messageDate = new Date(date);
+    const today = new Date();
+    const yesterday = new Date();
+
+    yesterday.setDate(today.getDate() - 1);
+
+    if (messageDate.toDateString() === today.toDateString()) {
+      return "Today";
+    }
+
+    if (messageDate.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
+
+    return messageDate.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
 
   return (
     <>
@@ -1270,134 +1291,162 @@ const ChatPage = () => {
 
                 {/* ================= Chat Content ================= */}
 
-                <div className="chat-content">
-                  {isLoadingConversation ? (
-                    <div className="empty-chat-screen">
-                      <p>Loading conversation…</p>
-                    </div>
-                  ) : conversationError ? (
-                    <div className="empty-chat-screen">
-                      <p style={{ color: "#f87171" }}>{conversationError}</p>
-                    </div>
-                  ) : conversation.length === 0 ? (
-                    <div className="empty-chat-screen">
-                      <div className="empty-icon">
-                        <FiMessageSquare />
-                      </div>
+                <div className="chat-body">
+                  {conversation.map((msg, index) => {
+                    const isMine = msg.senderId === currentUserId;
 
-                      <h2>No Chats Yet</h2>
+                    const isHiddenForMe =
+                      msg.deletedFor?.includes(currentUserId);
 
-                      <p>
-                        Start a conversation with{" "}
-                        <strong>{selectedChat.name}</strong>.
-                      </p>
+                    if (isHiddenForMe) return null;
 
-                      <p className="sub-text">
-                        Messages will appear here once you start chatting.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="chat-body">
-                      {conversation.map((msg) => {
-                        const isMine = msg.senderId === currentUserId;
+                    const currentLabel = getMessageDateLabel(msg.createdAt);
 
-                        const isHiddenForMe =
-                          msg.deletedFor?.includes(currentUserId);
+                    const previousLabel =
+                      index > 0
+                        ? getMessageDateLabel(conversation[index - 1].createdAt)
+                        : null;
 
-                        if (isHiddenForMe) return null;
+                    return (
+                      <React.Fragment key={msg.id}>
+                        {currentLabel !== previousLabel && (
+                          <div className="date-divider">
+                            <span>{currentLabel}</span>
+                          </div>
+                        )}
 
-                        return (
-                          <div
-                            key={msg.id}
-                            className={`message ${
-                              isMine ? "sent" : "received"
-                            } ${msg.type === "image" ? "image-message" : ""}`}
-                          >
-                            <div className="message-bubble">
-                              {isMine && !msg.deleted && (
-                                <div className="message-menu-wrapper">
-                                  <button
-                                    className="message-menu-btn"
-                                    onClick={() =>
-                                      setActiveMenuMessageId(
-                                        activeMenuMessageId === msg.id
-                                          ? null
-                                          : msg.id,
-                                      )
-                                    }
-                                  >
-                                    <FiChevronDown size={18} />
-                                  </button>
+                        <div
+                          className={`message ${
+                            isMine ? "sent" : "received"
+                          } ${msg.type === "image" ? "image-message" : ""}`}
+                        >
+                          <div className="message-bubble">
+                            {isMine && !msg.deleted && (
+                              <div className="message-menu-wrapper">
+                                <button
+                                  className="message-menu-btn"
+                                  onClick={() =>
+                                    setActiveMenuMessageId(
+                                      activeMenuMessageId === msg.id
+                                        ? null
+                                        : msg.id,
+                                    )
+                                  }
+                                >
+                                  <FiChevronDown size={18} />
+                                </button>
 
-                                  {activeMenuMessageId === msg.id && (
-                                    <div className="message-menu-dropdown">
-                                      <div
-                                        className="message-menu-item"
-                                        onClick={() =>
-                                          handleDeleteMessage(msg.id, false)
-                                        }
-                                      >
-                                        Delete for me
-                                      </div>
-
-                                      <div
-                                        className="message-menu-item danger"
-                                        onClick={() =>
-                                          handleDeleteMessage(msg.id, true)
-                                        }
-                                      >
-                                        Delete for everyone
-                                      </div>
+                                {activeMenuMessageId === msg.id && (
+                                  <div className="message-menu-dropdown">
+                                    <div
+                                      className="message-menu-item"
+                                      onClick={() =>
+                                        handleDeleteMessage(msg.id, false)
+                                      }
+                                    >
+                                      Delete for me
                                     </div>
-                                  )}
-                                </div>
-                              )}
 
-                              {msg.deleted ? (
-                                <p className="deleted-text">
-                                  <em>This message was deleted</em>
-                                </p>
-                              ) : msg.type === "image" ? (
+                                    <div
+                                      className="message-menu-item danger"
+                                      onClick={() =>
+                                        handleDeleteMessage(msg.id, true)
+                                      }
+                                    >
+                                      Delete for everyone
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {msg.deleted ? (
+                              <p className="deleted-text">
+                                <em>This message was deleted</em>
+                              </p>
+                            ) : msg.type === "image" ? (
+                              <>
                                 <img
                                   src={msg.mediaUrl}
                                   alt=""
                                   className="chat-image"
                                 />
-                              ) : msg.type === "audio" ? (
-                                <audio controls src={msg.mediaUrl} />
-                              ) : (
-                                <>
-                                  <p>{msg.text}</p>
 
-                                  <div className="message-meta">
-                                    <span className="message-time">
-                                      {formatBubbleTime(msg.createdAt)}
+                                <div className="message-meta">
+                                  <span className="message-time">
+                                    {formatBubbleTime(msg.createdAt)}
+                                  </span>
+
+                                  {isMine && (
+                                    <span
+                                      className={`message-status ${
+                                        msg.seen
+                                          ? "seen"
+                                          : msg.delivered
+                                            ? "delivered"
+                                            : "sent"
+                                      }`}
+                                    >
+                                      {msg.delivered || msg.seen ? "✓✓" : "✓"}
                                     </span>
+                                  )}
+                                </div>
+                              </>
+                            ) : msg.type === "audio" ? (
+                              <>
+                                <audio controls src={msg.mediaUrl} />
 
-                                    {isMine && (
-                                      <span
-                                        className={`message-status ${
-                                          msg.seen
-                                            ? "seen"
-                                            : msg.delivered
-                                              ? "delivered"
-                                              : "sent"
-                                        }`}
-                                      >
-                                        {msg.delivered || msg.seen ? "✓✓" : "✓"}
-                                      </span>
-                                    )}
-                                  </div>
-                                </>
-                              )}
-                            </div>
+                                <div className="message-meta">
+                                  <span className="message-time">
+                                    {formatBubbleTime(msg.createdAt)}
+                                  </span>
+
+                                  {isMine && (
+                                    <span
+                                      className={`message-status ${
+                                        msg.seen
+                                          ? "seen"
+                                          : msg.delivered
+                                            ? "delivered"
+                                            : "sent"
+                                      }`}
+                                    >
+                                      {msg.delivered || msg.seen ? "✓✓" : "✓"}
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <p>{msg.text}</p>
+
+                                <div className="message-meta">
+                                  <span className="message-time">
+                                    {formatBubbleTime(msg.createdAt)}
+                                  </span>
+
+                                  {isMine && (
+                                    <span
+                                      className={`message-status ${
+                                        msg.seen
+                                          ? "seen"
+                                          : msg.delivered
+                                            ? "delivered"
+                                            : "sent"
+                                      }`}
+                                    >
+                                      {msg.delivered || msg.seen ? "✓✓" : "✓"}
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
-
                 {/* ================= Chat Input ================= */}
 
                 <div className="chat-input">
@@ -1477,6 +1526,6 @@ const ChatPage = () => {
       </div>
     </>
   );
-};
+};;
 
 export default ChatPage;

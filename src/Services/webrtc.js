@@ -1,4 +1,4 @@
-let peerConnection = null;
+// let peerConnection = null;
 let localStream = null;
 let pendingCandidates = [];
 
@@ -88,13 +88,25 @@ export const getAudioOnlyStream = async () => {
     return localStream;
   }
 
-  localStream = await navigator.mediaDevices.getUserMedia({
-    audio: true,
-  });
+  try {
+    console.log("🎤 Requesting microphone permission...");
 
-  console.log("🎤 Local audio stream ready");
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
 
-  return localStream;
+    console.log("✅ Microphone Ready");
+    console.log(localStream.getAudioTracks());
+
+    return localStream;
+  } catch (err) {
+    console.error("❌ Audio Permission Error:", err);
+    throw err;
+  }
 };
 
 // Get existing local stream (without requesting a new one)

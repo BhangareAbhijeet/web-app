@@ -10,6 +10,7 @@ import {
   createPeer,
   getPeer,
   getLocalStream,
+  getAudioOnlyStream,
   closePeer,
   muteAudio,
 } from "../services/webrtc";
@@ -103,7 +104,7 @@ function VoiceCall({
       try {
         console.log("📩 Voice offer received from:", data.from);
 
-        const stream = await getLocalStream();
+        const stream = await getAudioOnlyStream();
 
         stream.getTracks().forEach((track) => {
           const alreadyAdded = peer
@@ -228,7 +229,7 @@ function VoiceCall({
 
       peerRef.current = peer;
 
-      const stream = await getLocalStream();
+      const stream = await getAudioOnlyStream();
 
       stream.getTracks().forEach((track) => {
         const alreadyAdded = peer
@@ -324,13 +325,9 @@ function VoiceCall({
         <audio ref={audioRef} autoPlay playsInline />
 
         <div className="top-section">
-        <img
-  src={receiverPhoto || avatar}
-  className="avatar"
-  alt="avatar"
-/>
+          <img src={receiverPhoto || avatar} className="avatar" alt="avatar" />
 
-<h2>{receiverName || receiver}</h2>
+          <h2>{receiverName || receiver}</h2>
 
           <p>Voice Call</p>
 

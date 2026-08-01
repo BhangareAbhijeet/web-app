@@ -273,6 +273,41 @@ body {
             font-style: italic;
             color: #8696a0;
             font-size: 13px;     }
+
+                        /* =========================
+               DATE SEPARATOR
+            ========================= */
+            
+                        .chat-date {
+                            align-self: center;
+            
+                            padding: 6px 14px;
+            
+                            border-radius: 10px;
+            
+                            background: rgba(32, 44, 51, .9);
+            
+                            color: #d1d5db;
+            
+                            font-size: 12px;
+            
+                            margin: 12px 0;
+                        }
+            
+                        .date-divider {
+                            display: flex;
+                            justify-content: center;
+                            margin: 15px 0;
+                        }
+            
+                        .date-divider span {
+                            background: rgba(255, 255, 255, 0.15);
+                            color: #fff;
+                            padding: 5px 12px;
+                            border-radius: 20px;
+                            font-size: 12px;
+                            font-weight: 500;
+                        }
 /* =========================
    Contacts Sidebar
 ========================= */
