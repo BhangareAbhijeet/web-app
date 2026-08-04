@@ -104,21 +104,35 @@
     align-items: center;
 }
 
+.call-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    filter: blur(18px);
+    transform: scale(1.02);
+
+    z-index: 0;
+}
+
 .call-overlay {
+    position: relative;
+    z-index: 1;
+
     width: 100%;
     height: 100%;
 
     display: flex;
     flex-direction: column;
     align-items: center;
+
     justify-content: flex-start;
+    padding-top: 60px;
 
-    padding-top: 70px;
-
-    backdrop-filter: blur(10px);
-    background: rgba(0, 0, 0, .08);
-
-    position: relative;
+    backdrop-filter: blur(25px);
+    background: rgba(0, 0, 0, .45);
 }
 
 .caller-avatar {

@@ -1,15 +1,28 @@
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "https://anteater-tattle-parted.ngrok-free.dev";
+export const SOCKET_URL = "https://anteater-tattle-parted.ngrok-free.dev";
 
 const socket = io(SOCKET_URL, {
-  transports: ["websocket"], // use websocket instead of polling
+  transports: ["websocket"],
   withCredentials: true,
-  autoConnect: true,
+  autoConnect: true, // ✅ CHANGED
+  extraHeaders: {
+    "ngrok-skip-browser-warning": "true",
+  },
 });
 
 socket.on("connect", () => {
   console.log("✅ SOCKET CONNECTED:", socket.id);
+
+  const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+  const userId = currentUser?._id || currentUser?.id;
+
+  if (userId) {
+    socket.emit("register-user", userId);
+    socket.emit("video-register-user", userId); // ✅ NEW
+    socket.emit("addUser", userId);
+    console.log("✅ User registered (voice + video)");
+  }
 });
 
 socket.on("connect_error", (error) => {

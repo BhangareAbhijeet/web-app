@@ -18,6 +18,9 @@ import {
   FiSend,
   FiChevronDown,
   FiVideo,
+  FiPhoneIncoming,
+  FiPhoneOutgoing,
+  FiPhoneMissed,
 } from "react-icons/fi";
 import EmojiPicker from "emoji-picker-react";
 
@@ -41,6 +44,7 @@ const ENDPOINTS = {
   sendMessage: () => "/messages",
   markRead: (senderId, receiverId) =>
     `/messages/mark-read/${senderId}/${receiverId}`,
+  callHistory: (userId) => `/calls/history/${userId}`,
 };
 
 // ---------------------------------------------------------------------------
@@ -147,6 +151,14 @@ const formatLastSeen = (lastSeenInput) => {
   })} at ${time}`;
 };
 
+// Format call duration (from doc6 — used by Calls tab)
+const formatCallDuration = (seconds) => {
+  if (!seconds) return "0s";
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  return `${mins}m`;
+};
+
 // ---------------------------------------------------------------------------
 // Message-shape helpers
 // ---------------------------------------------------------------------------
@@ -223,6 +235,8 @@ const ChatPage = () => {
 
   // ---- Backend-driven state ---------------------------------------------
   const [chats, setChats] = useState([]);
+  const [callHistory, setCallHistory] = useState([]);
+  const [isLoadingCalls, setIsLoadingCalls] = useState(true);
   const [sidebarView, setSidebarView] = useState("chats");
   const [showMenu, setShowMenu] = useState(false);
   const [showChatMenu, setShowChatMenu] = useState(false);
@@ -526,6 +540,39 @@ const ChatPage = () => {
   }, [currentUserId]);
 
   // =========================================================================
+  // 1a. Fetch call history (from doc6)
+  // =========================================================================
+  const fetchCallHistory = useCallback(async () => {
+    if (!currentUserId) return;
+    setIsLoadingCalls(true);
+
+    try {
+      const res = await api.get(`/calls/history/${currentUserId}`);
+      const calls = Array.isArray(res.data) ? res.data : [];
+
+      const formatted = calls.map((call) => ({
+        id: call._id,
+        callerId: call.callerId,
+        receiverId: call.receiverId,
+        callerName: call.callerName,
+        receiverName: call.receiverName,
+        callerProfile: call.callerProfile,
+        receiverProfile: call.receiverProfile,
+        duration: call.duration || 0,
+        status: call.status, // 'completed', 'missed', 'declined'
+        type: call.callerId === currentUserId ? "outgoing" : "incoming",
+        createdAt: call.createdAt,
+      }));
+
+      setCallHistory(formatted);
+    } catch (err) {
+      console.error("Failed to fetch call history:", err);
+    } finally {
+      setIsLoadingCalls(false);
+    }
+  }, [currentUserId]);
+
+  // =========================================================================
   // 1b. Fetch all registered contacts
   // =========================================================================
   useEffect(() => {
@@ -623,10 +670,11 @@ const ChatPage = () => {
   );
 
   // =========================================================================
-  // 4a. Mount: load chat list + connect Socket.IO
+  // 4a. Mount: load chat list + call history + connect Socket.IO
   // =========================================================================
   useEffect(() => {
     fetchChatList();
+    fetchCallHistory();
 
     socketRef.current = socket;
 
@@ -634,10 +682,13 @@ const ChatPage = () => {
       socket.connect();
     }
 
-    socket.on("connect", () => {
-      socket.emit("addUser", currentUserId);
-      socket.emit("register-user", currentUserId);
-    });
+  socket.on("connect", () => {
+  console.log("🔌 Socket connected:", socket.id);
+  socket.emit("addUser", currentUserId);
+  socket.emit("register-user", currentUserId);
+  socket.emit("video-register-user", currentUserId); // ✅ NEW
+  console.log("📡 User registered (voice + video)"); // ✅ NEW
+});
 
     socket.on("getMessage", (data) => {
       const msg = normalizeMessage({
@@ -1041,6 +1092,50 @@ const ChatPage = () => {
       block: "center",
     });
   };
+
+  // Call history helpers (from doc6)
+  const handleCallFromHistory = (call) => {
+    const targetId =
+      call.callerId === currentUserId ? call.receiverId : call.callerId;
+    const targetName =
+      call.callerId === currentUserId ? call.receiverName : call.callerName;
+    const targetPhoto =
+      call.callerId === currentUserId
+        ? call.receiverProfile
+        : call.callerProfile;
+
+    socketRef.current?.emit("video-call-user", {
+      callerId: currentUserId,
+      name: `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim(),
+      targetUserId: targetId,
+      profile: currentUser?.profilePic?.url || currentUser?.profile || null,
+    });
+
+    navigate("/videocall", {
+      state: {
+        targetUserId: targetId,
+        targetUserName: targetName,
+        targetProfile: targetPhoto,
+      },
+    });
+  };
+
+  const getCallIcon = (call) => {
+    if (call.type === "outgoing") {
+      return call.status === "missed" ? (
+        <FiPhoneMissed size={18} color="#ef4444" />
+      ) : (
+        <FiPhoneOutgoing size={18} color="#10b981" />
+      );
+    } else {
+      return call.status === "missed" ? (
+        <FiPhoneMissed size={18} color="#ef4444" />
+      ) : (
+        <FiPhoneIncoming size={18} color="#10b981" />
+      );
+    }
+  };
+
   // =========================================================================
   // Derived list for the sidebar
   // =========================================================================
@@ -1078,7 +1173,9 @@ const ChatPage = () => {
       <div className="chat-page">
         <div className="main-container">
           {/* ================= Sidebar ================= */}
-          {(activeNav === "messages" || activeNav === "contacts") && (
+          {(activeNav === "messages" ||
+            activeNav === "contacts" ||
+            activeNav === "calls") && (
             <>
               {activeNav === "messages" ? (
                 <aside className="chatpg-sidebar">
@@ -1299,6 +1396,100 @@ const ChatPage = () => {
                     )}
                   </div>
                 </aside>
+              ) : activeNav === "calls" ? (
+                <aside className="chatpg-sidebar calls-sidebar">
+                  <div className="sidebar-header">
+                    <h2>Calls</h2>
+                  </div>
+
+                  <div className="calls-list">
+                    {isLoadingCalls ? (
+                      <p style={{ padding: 20 }}>Loading calls...</p>
+                    ) : callHistory.length === 0 ? (
+                      <p
+                        style={{ padding: 20, textAlign: "center", color: "#999" }}
+                      >
+                        No calls yet
+                      </p>
+                    ) : (
+                      callHistory.map((call) => {
+                        const otherName =
+                          call.callerId === currentUserId
+                            ? call.receiverName
+                            : call.callerName;
+                        const otherPhoto =
+                          call.callerId === currentUserId
+                            ? call.receiverProfile
+                            : call.callerProfile;
+
+                        return (
+                          <div
+                            key={call.id}
+                            className="call-card"
+                            onClick={() => handleCallFromHistory(call)}
+                          >
+                            <div
+                              className="call-avatar"
+                              style={{
+                                background: getAvatarStyle(otherName)
+                                  .avatarColor,
+                                color: getAvatarStyle(otherName).textColor,
+                              }}
+                            >
+                              {otherPhoto ? (
+                                <img
+                                  src={otherPhoto}
+                                  alt={otherName}
+                                  className="avatar-image"
+                                />
+                              ) : (
+                                <span>{getInitials(otherName)}</span>
+                              )}
+                            </div>
+
+                            <div className="call-info">
+                              <div className="top">
+                                <h4>{otherName}</h4>
+                                <span className="call-time">
+                                  {formatMessageTime(call.createdAt)}
+                                </span>
+                              </div>
+                              <div className="bottom">
+                                <div className="call-status-row">
+                                  {getCallIcon(call)}
+                                  <span className="call-status-text">
+                                    {call.type === "outgoing"
+                                      ? call.status === "missed"
+                                        ? "Call failed"
+                                        : "Outgoing"
+                                      : call.status === "missed"
+                                        ? "Missed call"
+                                        : "Incoming"}
+                                  </span>
+                                </div>
+                                {call.duration > 0 && (
+                                  <span className="call-duration">
+                                    {formatCallDuration(call.duration)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              className="call-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCallFromHistory(call);
+                              }}
+                            >
+                              <FiPhone size={20} />
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </aside>
               ) : (
                 <ContactsSidebar
                   onBack={() => navigate("/messages")}
@@ -1363,27 +1554,46 @@ const ChatPage = () => {
 
                   <div className="header-actions">
                     <FiVideo
-                      style={{ cursor: "pointer" }}
-                      onClick={() =>
-                        navigate(
-                          `/video-call?user=${currentUserId}&target=${selectedChat.id}`,
-                          {
-                            state: {
-                              remoteUser: {
-                                id: selectedChat.id,
-                                name: selectedChat.name,
-                                status: selectedChat.online
-                                  ? "Online"
-                                  : "Offline",
-                                profile:
-                                  selectedChat.photo ||
-                                  "https://i.pravatar.cc/200?img=12",
-                              },
-                            },
-                          },
-                        )
-                      }
-                    />
+  style={{ cursor: "pointer" }}
+  onClick={() => {
+    // ✅ NEW: Check socket is connected
+    if (!socketRef.current?.connected) {
+      alert("Not connected. Please wait and try again.");
+      return;
+    }
+
+    // ✅ NEW: Emit socket event to notify receiver
+    socketRef.current.emit(
+      "video-call-user",
+      {
+        callerId: currentUserId,
+        name: `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim(),
+        targetUserId: selectedChat.id,
+        profile: currentUser?.profilePic?.url || null,
+      },
+      (error) => {
+        if (error) {
+          console.error("❌ Failed to initiate call:", error);
+          alert("Failed to start call. Try again.");
+          return;
+        }
+        console.log("✅ Video call initiated");
+      }
+    );
+
+    // Navigate caller to video call page
+    navigate("/video-call", {
+      state: {
+        remoteUser: {
+          id: selectedChat.id,
+          name: selectedChat.name,
+          status: selectedChat.online ? "Online" : "Offline",
+          profile: selectedChat.photo || "https://i.pravatar.cc/200?img=12",
+        },
+      },
+    });
+  }}
+/>
 
                     <FiPhone
                       style={{ cursor: "pointer" }}
@@ -1615,6 +1825,25 @@ const ChatPage = () => {
                                 <p className="deleted-text">
                                   <em>This message was deleted</em>
                                 </p>
+                              ) : msg.type === "video-call" ? (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    padding: "2px 4px",
+                                  }}
+                                >
+                                  <FiVideo size={18} />
+                                  <div>
+                                    <div style={{ fontWeight: 600 }}>
+                                      Video call
+                                    </div>
+                                    <div style={{ fontSize: 13, opacity: 0.75 }}>
+                                      {msg.text}
+                                    </div>
+                                  </div>
+                                </div>
                               ) : msg.type === "image" ? (
                                 <img
                                   src={msg.mediaUrl}
@@ -1782,6 +2011,3 @@ const ChatPage = () => {
 };
 
 export default ChatPage;
-
-
-            

@@ -14,8 +14,15 @@ const config = {
 // Peer Connection
 // ---------------------------------------------------------------------------
 
-// Create WebRTC Peer Connection
-export const createPeerConnection = (onIceCandidate) => {
+/**
+ * Create WebRTC Peer Connection
+ * @param {Function} onIceCandidate - Callback when ICE candidate is discovered
+ * @param {Function} onConnectionStateChange - Callback for connection state changes
+ */
+export const createPeerConnection = (
+  onIceCandidate,
+  onConnectionStateChange,
+) => {
   peerConnection = new RTCPeerConnection(config);
 
   console.log("✅ WebRTC Peer Connection Created");
@@ -26,20 +33,23 @@ export const createPeerConnection = (onIceCandidate) => {
     }
   };
 
-  // Add any ICE candidates that arrived before the peer connection existed
-  while (pendingCandidates.length > 0) {
-    const candidate = pendingCandidates.shift();
+  peerConnection.onconnectionstatechange = () => {
+    const state = peerConnection.connectionState;
+    console.log("WebRTC Connection State:", state);
 
-    peerConnection
-      .addIceCandidate(new RTCIceCandidate(candidate))
-      .then(() => console.log("Queued ICE Candidate added"))
-      .catch((err) => console.error("Error adding queued ICE:", err));
-  }
+    if (onConnectionStateChange) {
+      onConnectionStateChange(state);
+    }
+  };
+
+  // NOTE: Do NOT flush pending candidates here. The remote description
+  // (offer/answer) must be set first, or addIceCandidate will fail.
+  // Candidates are flushed after setRemoteDescription succeeds.
 
   return peerConnection;
 };
 
-// Alias — shorter name, same behavior (no-op if already created)
+// Alias — shorter name
 export const createPeer = () => {
   if (!peerConnection) {
     return createPeerConnection();
@@ -57,11 +67,32 @@ export const getPeer = () => {
   return peerConnection;
 };
 
+/**
+ * Flush any ICE candidates that arrived before remote description was set.
+ * Must only be called AFTER setRemoteDescription has succeeded.
+ */
+const flushPendingCandidates = () => {
+  if (!peerConnection || pendingCandidates.length === 0) return;
+
+  console.log(`Flushing ${pendingCandidates.length} queued ICE candidate(s)`);
+
+  pendingCandidates.forEach((candidate) => {
+    peerConnection
+      .addIceCandidate(new RTCIceCandidate(candidate))
+      .then(() => console.log("Queued ICE Candidate added"))
+      .catch((err) => console.error("Error adding queued ICE:", err));
+  });
+
+  pendingCandidates = [];
+};
+
 // ---------------------------------------------------------------------------
 // Local Media
 // ---------------------------------------------------------------------------
 
-// Get Camera + Microphone (video call)
+/**
+ * Get Camera + Microphone (video call)
+ */
 export const getLocalStream = async () => {
   if (localStream) {
     return localStream;
@@ -82,7 +113,9 @@ export const getLocalStream = async () => {
   }
 };
 
-// Get Microphone only (audio-only calls)
+/**
+ * Get Microphone only (audio-only calls)
+ */
 export const getAudioOnlyStream = async () => {
   if (localStream) {
     return localStream;
@@ -109,12 +142,16 @@ export const getAudioOnlyStream = async () => {
   }
 };
 
-// Get existing local stream (without requesting a new one)
+/**
+ * Get existing local stream (without requesting a new one)
+ */
 export const getLocalStreamObject = () => {
   return localStream;
 };
 
-// Set existing local stream
+/**
+ * Set existing local stream
+ */
 export const setLocalStream = (stream) => {
   localStream = stream;
 };
@@ -133,7 +170,9 @@ export const addLocalStreamToPeer = (stream) => {
   console.log("Local stream added to peer connection");
 };
 
-// Receive remote video/audio stream
+/**
+ * Receive remote video/audio stream
+ */
 export const setupRemoteStream = (onRemoteStream) => {
   if (!peerConnection) {
     console.error("Peer connection not created");
@@ -185,6 +224,9 @@ export const createAnswer = async (offer) => {
   try {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
+    // Remote description is set now — safe to flush pending candidates
+    flushPendingCandidates();
+
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
 
@@ -207,6 +249,10 @@ export const setRemoteAnswer = async (answer) => {
     await peerConnection.setRemoteDescription(
       new RTCSessionDescription(answer),
     );
+
+    // Remote description is set now — safe to flush pending candidates
+    flushPendingCandidates();
+
     console.log("Remote answer set successfully");
   } catch (error) {
     console.error("Error setting remote answer:", error);
@@ -214,9 +260,11 @@ export const setRemoteAnswer = async (answer) => {
 };
 
 export const addIceCandidate = async (candidate) => {
-  // Queue candidate if peer connection isn't ready yet
-  if (!peerConnection) {
-    console.log("Peer connection not ready. Queueing ICE candidate...");
+  // Queue candidate if:
+  // 1. Peer connection doesn't exist yet, OR
+  // 2. Remote description hasn't been set yet
+  if (!peerConnection || !peerConnection.remoteDescription) {
+    console.log("Remote description not ready. Queueing ICE candidate...");
     pendingCandidates.push(candidate);
     return;
   }
@@ -234,9 +282,11 @@ export const addIceCandidate = async (candidate) => {
 // ---------------------------------------------------------------------------
 
 export const toggleMicrophone = () => {
-  if (!localStream) return false;
+  const stream = getLocalStreamObject();
 
-  const audioTrack = localStream.getAudioTracks()[0];
+  if (!stream) return false;
+
+  const audioTrack = stream.getAudioTracks()[0];
 
   if (!audioTrack) return false;
 
@@ -245,15 +295,17 @@ export const toggleMicrophone = () => {
   return audioTrack.enabled;
 };
 
-// Alias — same behavior, simpler name (matches second file's API)
+// Alias — simpler name, same behavior
 export const muteAudio = () => {
-  toggleMicrophone();
+  return toggleMicrophone();
 };
 
 export const toggleCamera = () => {
-  if (!localStream) return false;
+  const stream = getLocalStreamObject();
 
-  const videoTrack = localStream.getVideoTracks()[0];
+  if (!stream) return false;
+
+  const videoTrack = stream.getVideoTracks()[0];
 
   if (!videoTrack) return false;
 
@@ -263,9 +315,11 @@ export const toggleCamera = () => {
 };
 
 export const switchCamera = async () => {
-  if (!localStream) return;
+  const stream = getLocalStreamObject();
 
-  const videoTrack = localStream.getVideoTracks()[0];
+  if (!stream) return;
+
+  const videoTrack = stream.getVideoTracks()[0];
 
   if (!videoTrack) return;
 
@@ -279,8 +333,10 @@ export const switchCamera = async () => {
 
   const newVideoTrack = newStream.getVideoTracks()[0];
 
-  if (peerConnection) {
-    const sender = peerConnection
+  const pc = getPeerConnection();
+
+  if (pc) {
+    const sender = pc
       .getSenders()
       .find((s) => s.track && s.track.kind === "video");
 
@@ -290,10 +346,10 @@ export const switchCamera = async () => {
   }
 
   videoTrack.stop();
-  localStream.removeTrack(videoTrack);
-  localStream.addTrack(newVideoTrack);
+  stream.removeTrack(videoTrack);
+  stream.addTrack(newVideoTrack);
 
-  return localStream;
+  return stream;
 };
 
 // ---------------------------------------------------------------------------
@@ -304,22 +360,22 @@ export const cleanupCall = () => {
   // Stop camera and microphone
   if (localStream) {
     localStream.getTracks().forEach((track) => track.stop());
+    localStream = null;
   }
 
   // Close PeerConnection
   if (peerConnection) {
     peerConnection.close();
+    peerConnection = null;
   }
 
-  // ✅ Correctly reset module-level state (fixed: was shadowing with `const` before)
-  peerConnection = null;
-  localStream = null;
+  // Reset state
   pendingCandidates = [];
 
   console.log("❌ WebRTC cleanup completed");
 };
 
-// Alias — matches second file's simpler naming
+// Alias — matches simpler naming convention
 export const closePeer = () => {
   cleanupCall();
 };

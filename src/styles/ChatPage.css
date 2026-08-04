@@ -2029,3 +2029,23 @@ mark {
 
     }
 }
+
+.menu-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.menu-dropdown {
+    position: absolute;
+    top: 32px;
+    right: 0;
+    left: auto;
+
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 8px;
+    min-width: 160px;
+    z-index: 9999;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+}
