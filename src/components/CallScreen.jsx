@@ -6,6 +6,17 @@ import avatar from "../assets/avatar.jpg";
 
 import { Phone, MessageSquare, Mic, MicOff, Volume2 } from "lucide-react";
 
+const getInitials = (name = "") => {
+  return name
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+};
+
 function CallScreen({ user }) {
   const {
     status,
@@ -65,17 +76,20 @@ function CallScreen({ user }) {
   if (status === "idle") {
     return null;
   }
+  console.log("CallScreen otherUser:", otherUser);
 
   return (
     <div className="call-container">
       {/* Calling */}
       {status === "calling" && otherUser && (
-        <div
-          className="call-ui"
-          style={{
-            backgroundImage: `url(${otherUser.photo || avatar})`,
-          }}
-        >
+        <div className="call-ui">
+          <div
+            className="call-bg"
+            style={{
+              backgroundImage: `url(${otherUser.photo || avatar})`,
+            }}
+          ></div>
+
           <div className="call-overlay">
             <h2 className="calling-user-name">
               {otherUser.name || otherUser.id}
@@ -83,11 +97,28 @@ function CallScreen({ user }) {
 
             <p className="calling-text">Calling...</p>
 
-            <img
-              src={otherUser.photo || avatar}
-              alt="Avatar"
-              className="caller-avatar"
-            />
+            {otherUser.photo ? (
+              <img
+                src={otherUser.photo}
+                alt={otherUser.name}
+                className="caller-avatar"
+              />
+            ) : (
+              <div
+                className="caller-avatar"
+                style={{
+                  background: otherUser.avatarColor,
+                  color: otherUser.textColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "58px",
+                  fontWeight: "700",
+                }}
+              >
+                {getInitials(otherUser.name)}
+              </div>
+            )}
 
             <div className="calling-actions">
               <button
@@ -118,7 +149,9 @@ function CallScreen({ user }) {
         <div
           className="incoming-ui"
           style={{
-            backgroundImage: `url(${otherUser.photo || avatar})`,
+            backgroundImage: otherUser.photo
+              ? `url(${otherUser.photo})`
+              : "none",
             backgroundSize: "115%",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
@@ -128,12 +161,28 @@ function CallScreen({ user }) {
             <h2 className="incoming-user-name">
               {otherUser.name || otherUser.id}
             </h2>
-
-            <img
-              src={otherUser.photo || avatar}
-              alt="Avatar"
-              className="incoming-user-avatar"
-            />
+            {otherUser.photo ? (
+              <img
+                src={otherUser.photo}
+                alt={otherUser.name}
+                className="incoming-user-avatar"
+              />
+            ) : (
+              <div
+                className="incoming-user-avatar"
+                style={{
+                  background: otherUser.avatarColor,
+                  color: otherUser.textColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "58px",
+                  fontWeight: "700",
+                }}
+              >
+                {getInitials(otherUser.name)}
+              </div>
+            )}
 
             <div className="incoming-actions">
               <div className="action-item">
@@ -168,6 +217,10 @@ function CallScreen({ user }) {
             user={user}
             receiver={otherUser.id}
             receiverName={otherUser.name}
+            receiverPhoto={otherUser.photo}
+            receiverAvatarColor={otherUser.avatarColor}
+            receiverTextColor={otherUser.textColor}
+            receiverInitials={getInitials(otherUser.name)}
             isCaller={isCaller}
             onEnd={endCall}
           />

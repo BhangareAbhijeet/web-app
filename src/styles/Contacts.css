@@ -45,7 +45,7 @@
     gap: 4px;
 }
 
-.icon-btn {
+.contact-icon-btn {
     position: relative;
     width: 34px;
     height: 34px;
@@ -60,7 +60,7 @@
     transition: all 0.2s ease;
 }
 
-.icon-btn:hover {
+.contact-icon-btn:hover {
     background: #1a1a1c;
     color: #4d8cff;
 }
@@ -195,7 +195,7 @@
 }
 
 /* ===== Avatar (single source of truth) ===== */
-.avatar {
+.profile-avatar {
     position: relative;
     width: 48px;
     height: 48px;
@@ -210,7 +210,7 @@
     overflow: visible;
 }
 
-.avatar img {
+.profile-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;

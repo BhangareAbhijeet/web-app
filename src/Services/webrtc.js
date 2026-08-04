@@ -1,4 +1,4 @@
-// let peerConnection = null;
+let peerConnection = null;
 let localStream = null;
 let pendingCandidates = [];
 

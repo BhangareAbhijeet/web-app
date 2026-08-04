@@ -66,16 +66,16 @@ function AppContent() {
   const currentUserId =
     currentUser?._id ||
     currentUser?.id;
-
     useEffect(() => {
       if (status !== "connected" || !otherUser || !currentUserId) {
         return;
       }
 
-      const targetId = otherUser.id;
-
-      navigate(`/voice-call?user=${currentUserId}&target=${targetId}`, {
+      navigate(`/voice-call?user=${currentUserId}&target=${otherUser.id}`, {
         replace: true,
+        state: {
+          targetUser: otherUser,
+        },
       });
     }, [status, otherUser, currentUserId, navigate]);
 

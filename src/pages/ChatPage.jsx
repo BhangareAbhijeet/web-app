@@ -64,26 +64,19 @@ const getCurrentUser = () => {
   }
 };
 
-const avatarThemes = [
-  { bg: "rgba(242, 115, 92, 0.18)", text: "#F2735C" },
-  { bg: "rgba(139, 92, 246, 0.18)", text: "#B79CFF" },
-  { bg: "rgba(16, 185, 129, 0.18)", text: "#4ADE80" },
-  { bg: "rgba(245, 158, 11, 0.18)", text: "#FBBF24" },
-  { bg: "rgba(59, 130, 246, 0.18)", text: "#5AC8FA" },
-  { bg: "rgba(236, 72, 153, 0.18)", text: "#F472B6" },
-  { bg: "rgba(20, 184, 166, 0.18)", text: "#2DD4BF" },
-  { bg: "rgba(239, 68, 68, 0.18)", text: "#F87171" },
-  { bg: "rgba(14, 165, 233, 0.18)", text: "#38BDF8" },
-  { bg: "rgba(249, 115, 22, 0.18)", text: "#FB923C" },
+const AVATAR_PALETTE = [
+  { avatarColor: "#331c1c", textColor: "#f87171" },
+  { avatarColor: "#1e2530", textColor: "#60a5fa" },
+  { avatarColor: "#152233", textColor: "#38bdf8" },
+  { avatarColor: "#2a1e33", textColor: "#c084fc" },
+  { avatarColor: "#33231e", textColor: "#fb923c" },
 ];
 
-const getAvatarColor = (name) => {
-  let hash = 0;
-  for (let i = 0; i < (name || "").length; i++) {
-    hash += name.charCodeAt(i);
-  }
-  return avatarThemes[hash % avatarThemes.length];
+const getAvatarStyle = (name = "") => {
+  const index = name ? name.charCodeAt(0) % AVATAR_PALETTE.length : 0;
+  return AVATAR_PALETTE[index];
 };
+
 
 const getInitials = (name = "") => {
   const parts = name.trim().split(" ").filter(Boolean);
@@ -232,6 +225,13 @@ const ChatPage = () => {
   const [chats, setChats] = useState([]);
   const [sidebarView, setSidebarView] = useState("chats");
   const [showMenu, setShowMenu] = useState(false);
+  const [showChatMenu, setShowChatMenu] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [chatSearch, setChatSearch] = useState("");
+  const [matchedIndexes, setMatchedIndexes] = useState([]);
+  const [currentMatch, setCurrentMatch] = useState(0);
+  const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+  const [showContactPanel, setShowContactPanel] = useState(false);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [chatsError, setChatsError] = useState(null);
 
@@ -242,11 +242,14 @@ const ChatPage = () => {
   const [conversationError, setConversationError] = useState(null);
 
   const [messageInput, setMessageInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeout = useRef(null);
   const [isSending, setIsSending] = useState(false);
 
   const [showEmoji, setShowEmoji] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const conversation = selectedChat ? messages[selectedChat.id] || [] : [];
 
   const [activeMenuMessageId, setActiveMenuMessageId] = useState(null);
 
@@ -258,7 +261,11 @@ const ChatPage = () => {
   const pickerRef = useRef(null);
   const emojiBtnRef = useRef(null);
   const inputRef = useRef(null);
+  const chatBodyRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const messageRefs = useRef([]);
+  const sidebarMenuRef = useRef(null);
+  const chatMenuRef = useRef(null);
 
   useEffect(() => {
     selectedChatIdRef.current = selectedChat?.id || null;
@@ -758,7 +765,44 @@ const ChatPage = () => {
         return updated;
       });
     });
+    // ================= Typing =================
+
+    socket.on("typing", ({ senderId }) => {
+      if (selectedChatIdRef.current === senderId) {
+        setIsTyping(true);
+      }
+
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === senderId
+            ? {
+                ...chat,
+                typing: true,
+              }
+            : chat,
+        ),
+      );
+    });
+
+    socket.on("stopTyping", ({ senderId }) => {
+      if (selectedChatIdRef.current === senderId) {
+        setIsTyping(false);
+      }
+
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === senderId
+            ? {
+                ...chat,
+                typing: false,
+              }
+            : chat,
+        ),
+      );
+    });
     return () => {
+      socket.off("typing");
+      socket.off("stopTyping");
       socket.off("connect");
       socket.off("getMessage");
       socket.off("getUsers");
@@ -779,6 +823,17 @@ const ChatPage = () => {
       ) {
         setShowEmoji(false);
       }
+
+      if (
+        sidebarMenuRef.current &&
+        !sidebarMenuRef.current.contains(event.target)
+      ) {
+        setShowMenu(false);
+      }
+
+      if (chatMenuRef.current && !chatMenuRef.current.contains(event.target)) {
+        setShowChatMenu(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -787,12 +842,17 @@ const ChatPage = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }, [selectedChat, messages]);
+    if (!selectedChat) return;
+
+    // Wait until React finishes rendering the messages
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    }, 100);
+  }, [selectedChat, conversation.length]);
 
   // =========================================================================
   // 5. When a chat is selected
@@ -877,7 +937,12 @@ const ChatPage = () => {
     });
 
     setMessageInput("");
+    clearTimeout(typingTimeout.current);
 
+    socketRef.current.emit("stopTyping", {
+      senderId: currentUserId,
+      receiverId: selectedChat.id,
+    });
     socketRef.current.emit("sendMessage", {
       senderId: currentUserId,
       receiverId: selectedChat.id,
@@ -887,7 +952,27 @@ const ChatPage = () => {
       receiverLanguage: selectedChat?.language || "en",
     });
   };
+  const handleTyping = (e) => {
+    const value = e.target.value;
 
+    setMessageInput(value);
+
+    if (!selectedChat || !socketRef.current) return;
+
+    socketRef.current.emit("typing", {
+      senderId: currentUserId,
+      receiverId: selectedChat.id,
+    });
+
+    clearTimeout(typingTimeout.current);
+
+    typingTimeout.current = setTimeout(() => {
+      socketRef.current.emit("stopTyping", {
+        senderId: currentUserId,
+        receiverId: selectedChat.id,
+      });
+    }, 1000);
+  };
   const handleInputKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -935,6 +1020,27 @@ const ChatPage = () => {
     }
   };
 
+  const nextMatch = () => {
+    if (!matchedIndexes.length) return;
+    const next =
+      currentMatch === matchedIndexes.length - 1 ? 0 : currentMatch + 1;
+    setCurrentMatch(next);
+    messageRefs.current[matchedIndexes[next]]?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
+
+  const previousMatch = () => {
+    if (!matchedIndexes.length) return;
+    const prev =
+      currentMatch === 0 ? matchedIndexes.length - 1 : currentMatch - 1;
+    setCurrentMatch(prev);
+    messageRefs.current[matchedIndexes[prev]]?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
   // =========================================================================
   // Derived list for the sidebar
   // =========================================================================
@@ -967,31 +1073,6 @@ const ChatPage = () => {
             c.name.toLowerCase().includes(search.toLowerCase()),
         );
 
-  const conversation = selectedChat ? messages[selectedChat.id] || [] : [];
-
-  // ✅ Date label formatter for message separators
-  const getMessageDateLabel = (date) => {
-    const messageDate = new Date(date);
-    const today = new Date();
-    const yesterday = new Date();
-
-    yesterday.setDate(today.getDate() - 1);
-
-    if (messageDate.toDateString() === today.toDateString()) {
-      return "Today";
-    }
-
-    if (messageDate.toDateString() === yesterday.toDateString()) {
-      return "Yesterday";
-    }
-
-    return messageDate.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
-
   return (
     <>
       <div className="chat-page">
@@ -1004,7 +1085,7 @@ const ChatPage = () => {
                   <div className="sidebar-header">
                     <h2>LokChat</h2>
 
-                    <div className="menu-wrapper">
+                    <div className="menu-wrapper" ref={sidebarMenuRef}>
                       <FiMoreVertical
                         className="menu-icon"
                         onClick={() => setShowMenu(!showMenu)}
@@ -1078,7 +1159,9 @@ const ChatPage = () => {
                               <div
                                 className="chat-avatar"
                                 style={{
-                                  backgroundColor: getAvatarColor(chat.name),
+                                  background: getAvatarStyle(chat.name)
+                                    .avatarColor,
+                                  color: getAvatarStyle(chat.name).textColor,
                                 }}
                               >
                                 {chat.photo ? (
@@ -1117,7 +1200,23 @@ const ChatPage = () => {
                                     {isImageMessage(chat) && (
                                       <FiImage className="msg-type-icon" />
                                     )}
-                                    {getPreviewText(chat)}
+                                    {chat.typing ? (
+                                      <span className="typing-text">
+                                        Typing...
+                                      </span>
+                                    ) : (
+                                      <>
+                                        {isAudioMessage(chat) && (
+                                          <FiMic className="msg-type-icon" />
+                                        )}
+
+                                        {isImageMessage(chat) && (
+                                          <FiImage className="msg-type-icon" />
+                                        )}
+
+                                        {getPreviewText(chat)}
+                                      </>
+                                    )}
                                   </p>
 
                                   {chat.unread > 0 && (
@@ -1159,9 +1258,10 @@ const ChatPage = () => {
                                 <div
                                   className="chat-avatar"
                                   style={{
-                                    backgroundColor: getAvatarColor(
-                                      contact.name,
-                                    ),
+                                    background: getAvatarStyle(contact.name)
+                                      .avatarColor,
+                                    color: getAvatarStyle(contact.name)
+                                      .textColor,
                                   }}
                                 >
                                   {contact.photo ? (
@@ -1171,7 +1271,15 @@ const ChatPage = () => {
                                       className="avatar-image"
                                     />
                                   ) : (
-                                    <span>{getInitials(contact.name)}</span>
+                                    <span
+                                      style={{
+                                        color: getAvatarStyle(contact.name)
+                                          .textColor,
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      {getInitials(contact.name)}
+                                    </span>
                                   )}
                                 </div>
 
@@ -1222,9 +1330,10 @@ const ChatPage = () => {
                     <div
                       className="chat-avatar large"
                       style={{
-                        backgroundColor: selectedChat.photo
+                        background: selectedChat.photo
                           ? "transparent"
-                          : getAvatarColor(selectedChat.name),
+                          : getAvatarStyle(selectedChat.name).avatarColor,
+                        color: getAvatarStyle(selectedChat.name).textColor,
                       }}
                     >
                       {selectedChat.photo ? (
@@ -1241,11 +1350,13 @@ const ChatPage = () => {
                       <h3>{selectedChat.name}</h3>
 
                       <span className="online-status">
-                        {selectedChat.online
-                          ? "Online"
-                          : selectedChat.lastSeen
-                            ? `Last seen ${formatLastSeen(selectedChat.lastSeen)}`
-                            : "Offline"}
+                        {isTyping
+                          ? "Typing..."
+                          : selectedChat.online
+                            ? "Online"
+                            : selectedChat.lastSeen
+                              ? formatLastSeen(selectedChat.lastSeen)
+                              : "Offline"}
                       </span>
                     </div>
                   </div>
@@ -1281,172 +1392,295 @@ const ChatPage = () => {
                           id: selectedChat.id,
                           name: selectedChat.name,
                           photo: selectedChat.photo,
+                          avatarColor: getAvatarStyle(selectedChat.name)
+                            .avatarColor,
+                          textColor: getAvatarStyle(selectedChat.name)
+                            .textColor,
+                          initials: getInitials(selectedChat.name),
                         })
                       }
                     />
+                    <div className="header-menu-wrapper" ref={chatMenuRef}>
+                      <FiMoreVertical
+                        className="menu-icon"
+                        onClick={() => setShowChatMenu(!showChatMenu)}
+                      />
 
-                    <FiMoreVertical />
+                      {showChatMenu && (
+                        <div className="header-menu-dropdown">
+                          <div
+                            className="menu-item"
+                            onClick={() => {
+                              setShowSearch(!showSearch);
+                              setShowChatMenu(false);
+                            }}
+                          >
+                            Search
+                          </div>
+
+                          <div
+                            className="menu-item"
+                            onClick={() => {
+                              navigate(`/contactinfo/${selectedChat.id}`, {
+                                state: {
+                                  contact: {
+                                    id: selectedChat.id,
+                                    name: selectedChat.name,
+                                    photo: selectedChat.photo,
+                                    status: selectedChat.online
+                                      ? "Online"
+                                      : selectedChat.lastSeen
+                                        ? formatLastSeen(selectedChat.lastSeen)
+                                        : "Offline",
+                                  },
+                                },
+                              });
+                              setShowChatMenu(false);
+                            }}
+                          >
+                            Contact
+                          </div>
+
+                          <div
+                            className="menu-item"
+                            onClick={() => {
+                              setShowWallpaperModal(true);
+                              setShowChatMenu(false);
+                            }}
+                          >
+                            Wallpaper
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* ================= Chat Content ================= */}
 
-                <div className="chat-body">
-                  {conversation.map((msg, index) => {
-                    const isMine = msg.senderId === currentUserId;
+                {showSearch && (
+                  <div className="chat-search-box">
+                    <input
+                      type="text"
+                      placeholder="Search messages..."
+                      value={chatSearch}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setChatSearch(value);
 
-                    const isHiddenForMe =
-                      msg.deletedFor?.includes(currentUserId);
+                        if (!value.trim()) {
+                          setMatchedIndexes([]);
+                          setCurrentMatch(0);
+                          return;
+                        }
 
-                    if (isHiddenForMe) return null;
+                        const matches = [];
 
-                    const currentLabel = getMessageDateLabel(msg.createdAt);
+                        conversation.forEach((msg, index) => {
+                          if (
+                            (msg.text || "")
+                              .toLowerCase()
+                              .includes(value.toLowerCase())
+                          ) {
+                            matches.push(index);
+                          }
+                        });
 
-                    const previousLabel =
-                      index > 0
-                        ? getMessageDateLabel(conversation[index - 1].createdAt)
-                        : null;
+                        setMatchedIndexes(matches);
+                        setCurrentMatch(0);
 
-                    return (
-                      <React.Fragment key={msg.id}>
-                        {currentLabel !== previousLabel && (
-                          <div className="date-divider">
-                            <span>{currentLabel}</span>
-                          </div>
-                        )}
+                        if (matches.length > 0) {
+                          setTimeout(() => {
+                            messageRefs.current[matches[0]]?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center",
+                            });
+                          }, 100);
+                        }
+                      }}
+                    />
+                    <div className="search-actions">
+                      <button onClick={previousMatch}>↑</button>
+                      <button onClick={nextMatch}>↓</button>
+                      <span>
+                        {matchedIndexes.length
+                          ? `${currentMatch + 1}/${matchedIndexes.length}`
+                          : "0/0"}
+                      </span>
+                      <button
+                        className="close-search-btn"
+                        onClick={() => {
+                          setShowSearch(false);
+                          setChatSearch("");
+                          setMatchedIndexes([]);
+                          setCurrentMatch(0);
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-                        <div
-                          className={`message ${
-                            isMine ? "sent" : "received"
-                          } ${msg.type === "image" ? "image-message" : ""}`}
-                        >
-                          <div className="message-bubble">
-                            {isMine && !msg.deleted && (
-                              <div className="message-menu-wrapper">
-                                <button
-                                  className="message-menu-btn"
-                                  onClick={() =>
-                                    setActiveMenuMessageId(
-                                      activeMenuMessageId === msg.id
-                                        ? null
-                                        : msg.id,
-                                    )
-                                  }
-                                >
-                                  <FiChevronDown size={18} />
-                                </button>
+                <div className="chat-content">
+                  {isLoadingConversation ? (
+                    <div className="empty-chat-screen">
+                      <p>Loading conversation…</p>
+                    </div>
+                  ) : conversationError ? (
+                    <div className="empty-chat-screen">
+                      <p style={{ color: "#f87171" }}>{conversationError}</p>
+                    </div>
+                  ) : conversation.length === 0 ? (
+                    <div className="empty-chat-screen">
+                      <div className="empty-icon">
+                        <FiMessageSquare />
+                      </div>
 
-                                {activeMenuMessageId === msg.id && (
-                                  <div className="message-menu-dropdown">
-                                    <div
-                                      className="message-menu-item"
-                                      onClick={() =>
-                                        handleDeleteMessage(msg.id, false)
-                                      }
-                                    >
-                                      Delete for me
+                      <h2>No Chats Yet</h2>
+
+                      <p>
+                        Start a conversation with{" "}
+                        <strong>{selectedChat.name}</strong>.
+                      </p>
+
+                      <p className="sub-text">
+                        Messages will appear here once you start chatting.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="chat-body" ref={chatBodyRef}>
+                      {conversation.map((msg, index) => {
+                        const isMine = msg.senderId === currentUserId;
+                        const isHiddenForMe =
+                          msg.deletedFor?.includes(currentUserId);
+
+                        if (isHiddenForMe) return null;
+
+                        return (
+                          <div
+                            key={msg.id}
+                            ref={(el) => (messageRefs.current[index] = el)}
+                            className={`message ${
+                              isMine ? "sent" : "received"
+                            } ${msg.type === "image" ? "image-message" : ""} ${
+                              matchedIndexes.includes(index)
+                                ? index === matchedIndexes[currentMatch]
+                                  ? "current-highlight"
+                                  : "search-highlight"
+                                : ""
+                            }`}
+                          >
+                            <div className="message-bubble">
+                              {isMine && !msg.deleted && (
+                                <div className="message-menu-wrapper">
+                                  <button
+                                    className="message-menu-btn"
+                                    onClick={() =>
+                                      setActiveMenuMessageId(
+                                        activeMenuMessageId === msg.id
+                                          ? null
+                                          : msg.id,
+                                      )
+                                    }
+                                  >
+                                    <FiChevronDown size={18} />
+                                  </button>
+
+                                  {activeMenuMessageId === msg.id && (
+                                    <div className="message-menu-dropdown">
+                                      <div
+                                        className="message-menu-item"
+                                        onClick={() =>
+                                          handleDeleteMessage(msg.id, false)
+                                        }
+                                      >
+                                        Delete for me
+                                      </div>
+
+                                      <div
+                                        className="message-menu-item danger"
+                                        onClick={() =>
+                                          handleDeleteMessage(msg.id, true)
+                                        }
+                                      >
+                                        Delete for everyone
+                                      </div>
                                     </div>
+                                  )}
+                                </div>
+                              )}
 
-                                    <div
-                                      className="message-menu-item danger"
-                                      onClick={() =>
-                                        handleDeleteMessage(msg.id, true)
-                                      }
-                                    >
-                                      Delete for everyone
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {msg.deleted ? (
-                              <p className="deleted-text">
-                                <em>This message was deleted</em>
-                              </p>
-                            ) : msg.type === "image" ? (
-                              <>
+                              {msg.deleted ? (
+                                <p className="deleted-text">
+                                  <em>This message was deleted</em>
+                                </p>
+                              ) : msg.type === "image" ? (
                                 <img
                                   src={msg.mediaUrl}
                                   alt=""
                                   className="chat-image"
                                 />
-
-                                <div className="message-meta">
-                                  <span className="message-time">
-                                    {formatBubbleTime(msg.createdAt)}
-                                  </span>
-
-                                  {isMine && (
-                                    <span
-                                      className={`message-status ${
-                                        msg.seen
-                                          ? "seen"
-                                          : msg.delivered
-                                            ? "delivered"
-                                            : "sent"
-                                      }`}
-                                    >
-                                      {msg.delivered || msg.seen ? "✓✓" : "✓"}
-                                    </span>
-                                  )}
-                                </div>
-                              </>
-                            ) : msg.type === "audio" ? (
-                              <>
+                              ) : msg.type === "audio" ? (
                                 <audio controls src={msg.mediaUrl} />
+                              ) : (
+                                <>
+                                  <p>
+                                    {chatSearch && msg.text
+                                      ? msg.text
+                                          .split(
+                                            new RegExp(`(${chatSearch})`, "gi"),
+                                          )
+                                          .map((part, i) =>
+                                            part.toLowerCase() ===
+                                            chatSearch.toLowerCase() ? (
+                                              <mark key={i}>{part}</mark>
+                                            ) : (
+                                              part
+                                            ),
+                                          )
+                                      : msg.text}
+                                  </p>
 
-                                <div className="message-meta">
-                                  <span className="message-time">
-                                    {formatBubbleTime(msg.createdAt)}
-                                  </span>
-
-                                  {isMine && (
-                                    <span
-                                      className={`message-status ${
-                                        msg.seen
-                                          ? "seen"
-                                          : msg.delivered
-                                            ? "delivered"
-                                            : "sent"
-                                      }`}
-                                    >
-                                      {msg.delivered || msg.seen ? "✓✓" : "✓"}
+                                  <div className="message-meta">
+                                    <span className="message-time">
+                                      {formatBubbleTime(msg.createdAt)}
                                     </span>
-                                  )}
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <p>{msg.text}</p>
 
-                                <div className="message-meta">
-                                  <span className="message-time">
-                                    {formatBubbleTime(msg.createdAt)}
-                                  </span>
-
-                                  {isMine && (
-                                    <span
-                                      className={`message-status ${
-                                        msg.seen
-                                          ? "seen"
-                                          : msg.delivered
-                                            ? "delivered"
-                                            : "sent"
-                                      }`}
-                                    >
-                                      {msg.delivered || msg.seen ? "✓✓" : "✓"}
-                                    </span>
-                                  )}
-                                </div>
-                              </>
-                            )}
+                                    {isMine && (
+                                      <span
+                                        className={`message-status ${
+                                          msg.seen
+                                            ? "seen"
+                                            : msg.delivered
+                                              ? "delivered"
+                                              : "sent"
+                                        }`}
+                                      >
+                                        {msg.delivered || msg.seen ? "✓✓" : "✓"}
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {isTyping && (
+                        <div className="message received typing-message">
+                          <div className="typing-bubble">
+                            <span></span>
+                            <span></span>
+                            <span></span>
                           </div>
                         </div>
-                      </React.Fragment>
-                    );
-                  })}
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
                 </div>
+
                 {/* ================= Chat Input ================= */}
 
                 <div className="chat-input">
@@ -1481,7 +1715,7 @@ const ChatPage = () => {
                       type="text"
                       placeholder="Message"
                       value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
+                      onChange={handleTyping}
                       onKeyDown={handleInputKeyDown}
                       disabled={isSending}
                     />
@@ -1519,6 +1753,25 @@ const ChatPage = () => {
                     {messageInput.trim() ? <FiSend /> : <FiMic />}
                   </button>
                 </div>
+                {/* ================= Wallpaper Popup ================= */}
+                {showWallpaperModal && (
+                  <div
+                    className="wallpaper-overlay"
+                    onClick={() => setShowWallpaperModal(false)}
+                  >
+                    <div
+                      className="wallpaper-popup"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="wallpaper-icon"></div>
+                      <h2>Wallpaper</h2>
+                      <p>Wallpaper feature coming soon!</p>
+                      <button onClick={() => setShowWallpaperModal(false)}>
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </section>
@@ -1526,6 +1779,9 @@ const ChatPage = () => {
       </div>
     </>
   );
-};;
+};
 
 export default ChatPage;
+
+
+            
