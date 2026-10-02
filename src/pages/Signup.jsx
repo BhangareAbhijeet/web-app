@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash, FaChevronDown } from "react-icons/fa";
 import { IoArrowBack } from "react-icons/io5";
 import CountryCodeSelect from "../pages/CountryCodeSelect";
-import { signupUser } from "../services/api";
+import { signupUser } from "../Services/api";
 const language = localStorage.getItem("language") || "English";
 
 const translations = {
@@ -314,21 +314,21 @@ export default function Signup() {
       language: form.language,
     };
 
-    console.log(payload);
-
     const res = await signupUser(payload);
-
-    console.log(res);
 
     setLoading(false);
 
     if (res.status === "success") {
-      alert(res.message || "Signup Successful");
-
-      navigate("/login");
-    } else {
-      alert(res.message || "Signup Failed");
+      navigate("/verify-otp", {
+        state: {
+          email: form.email.trim(),
+          flow: "signup",
+        },
+      });
+      return;
     }
+
+    alert(res.message || "Signup Failed");
   };
   return (
     <div className="signup-page">

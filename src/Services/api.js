@@ -32,6 +32,38 @@ export const signupUser = async (userData) => {
   }
 };
 
+export const verifyOTP = async (email, otp, flow = "signup") => {
+  const endpoint = flow === "signup" ? "/verify-email-otp" : "/verify-otp";
+
+  try {
+    const res = await api.post(endpoint, { email, otp });
+    return res.data;
+  } catch (error) {
+    return (
+      error.response?.data || {
+        status: "failed",
+        message: "Network Error",
+      }
+    );
+  }
+};
+
+export const resendOTP = async (email, flow = "signup") => {
+  const endpoint = flow === "signup" ? "/resend-email-otp" : "/resend-otp";
+
+  try {
+    const res = await api.post(endpoint, { email });
+    return res.data;
+  } catch (error) {
+    return (
+      error.response?.data || {
+        status: "failed",
+        message: "Network Error",
+      }
+    );
+  }
+};
+
 // Login
 export const loginUser = async (loginData) => {
   try {
